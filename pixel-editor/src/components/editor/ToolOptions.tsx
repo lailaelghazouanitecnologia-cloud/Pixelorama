@@ -1,92 +1,242 @@
-import { Slider } from "@/components/ui/slider"
-import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3 } from "lucide-react"
+/**
+ * ToolOptions Component - Tool-specific options bar
+ * Based on Pixelorama's ToolOptions
+ */
+
 import { useEditorStore } from "@/store/editor-store"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { getHistory } from "@/core/history"
 
 export function ToolOptions() {
   const {
     brushSize,
     setBrushSize,
+    brushOpacity,
+    setBrushOpacity,
+    pixelPerfect,
+    setPixelPerfect,
     showGrid,
     toggleGrid,
+    snapToGrid,
+    toggleSnapToGrid,
     currentTool,
+    canUndo,
+    canRedo,
   } = useEditorStore()
 
+  const history = getHistory()
+
+  const handleUndo = () => history.undo()
+  const handleRedo = () => history.redo()
+
+  // Tool-specific options based on current tool
+  const showBrushOptions = ['pencil', 'eraser', 'line'].includes(currentTool)
+  const showShapeOptions = ['rectangle', 'ellipse'].includes(currentTool)
+  const showSelectionOptions = ['rectSelect', 'magicWand', 'lasso'].includes(currentTool)
+
   return (
-    <div className="h-9 bg-card border-b border-border flex items-center px-3 gap-4">
-      {/* Brush Size */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Size:</span>
-        <Slider
-          value={[brushSize]}
-          onValueChange={([v]) => setBrushSize(v)}
-          min={1}
-          max={32}
-          step={1}
-          className="w-24"
-        />
-        <span className="text-xs text-foreground w-6 text-right font-mono">{brushSize}</span>
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <div
+        className="h-7 flex items-center px-2 gap-3"
+        style={{
+          backgroundColor: 'var(--pix-bg-secondary)',
+          borderBottom: '1px solid var(--pix-border)'
+        }}
+      >
+        {/* Brush Size */}
+        {showBrushOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Size:</span>
+            <input
+              type="range"
+              className="slider w-20"
+              value={brushSize}
+              onChange={(e) => setBrushSize(parseInt(e.target.value))}
+              min={1}
+              max={64}
+            />
+            <input
+              type="number"
+              className="input w-10 text-center text-pix-xs py-0"
+              value={brushSize}
+              onChange={(e) => setBrushSize(Math.max(1, Math.min(64, parseInt(e.target.value) || 1)))}
+              min={1}
+              max={64}
+            />
+          </div>
+        )}
 
-      <Separator orientation="vertical" className="h-5" />
+        {/* Brush Opacity */}
+        {showBrushOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Opacity:</span>
+              <input
+                type="range"
+                className="slider w-20"
+                value={brushOpacity}
+                onChange={(e) => setBrushOpacity(parseInt(e.target.value))}
+                min={1}
+                max={100}
+              />
+              <span className="text-pix-xs w-8 text-right">{brushOpacity}%</span>
+            </div>
+          </>
+        )}
 
-      {/* Brush Opacity */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Opacity:</span>
-        <Slider
-          defaultValue={[100]}
-          min={0}
-          max={100}
-          step={1}
-          className="w-24"
-        />
-        <span className="text-xs text-foreground w-8 text-right font-mono">100%</span>
-      </div>
+        {/* Pixel Perfect */}
+        {showBrushOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${pixelPerfect ? 'active' : ''}`}
+                  onClick={() => setPixelPerfect(!pixelPerfect)}
+                >
+                  <MousePointer2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Pixel Perfect Mode</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
 
-      <Separator orientation="vertical" className="h-5" />
+        {/* Shape Options */}
+        {showShapeOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Shape:</span>
+            <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
+              <input type="checkbox" className="w-3 h-3" />
+              <span>Filled</span>
+            </label>
+            <div className="separator-v h-4 mx-1" />
+            <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
+              <input type="checkbox" className="w-3 h-3" />
+              <span>Anti-alias</span>
+            </label>
+          </div>
+        )}
 
-      {/* Tool-specific options */}
-      {currentTool === 'rect' || currentTool === 'ellipse' ? (
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-            <input type="checkbox" className="rounded border-border bg-background" />
-            Filled
-          </label>
+        {/* Selection Options */}
+        {showSelectionOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Mode:</span>
+            <select className="input py-0 text-pix-xs">
+              <option value="replace">Replace</option>
+              <option value="add">Add (Shift)</option>
+              <option value="subtract">Subtract (Alt)</option>
+              <option value="intersect">Intersect (Ctrl+Shift)</option>
+            </select>
+            {currentTool === 'magicWand' && (
+              <>
+                <div className="separator-v h-4 mx-1" />
+                <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
+                <input
+                  type="number"
+                  className="input w-12 text-center text-pix-xs py-0"
+                  defaultValue={0}
+                  min={0}
+                  max={255}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Quick Actions */}
+        <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="icon-btn"
+                onClick={handleUndo}
+                disabled={!canUndo}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Undo <span className="text-pix-text-muted">Ctrl+Z</span></p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="icon-btn"
+                onClick={handleRedo}
+                disabled={!canRedo}
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Redo <span className="text-pix-text-muted">Ctrl+Y</span></p>
+            </TooltipContent>
+          </Tooltip>
+
+          <div className="separator-v h-4 mx-1" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="icon-btn">
+                <FlipHorizontal className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Flip Horizontal</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="icon-btn">
+                <FlipVertical className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Flip Vertical</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <div className="separator-v h-4 mx-1" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={`icon-btn ${showGrid ? 'active' : ''}`}
+                onClick={toggleGrid}
+              >
+                <Grid3X3 className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Toggle Grid</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={`icon-btn ${snapToGrid ? 'active' : ''}`}
+                onClick={toggleSnapToGrid}
+              >
+                {snapToGrid ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">
+              <p>Snap to Grid</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
-      ) : null}
-
-      <div className="flex-1" />
-
-      {/* Quick Actions */}
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="xs" className="tool-button">
-          <Undo2 className="w-3.5 h-3.5" />
-        </Button>
-        <Button variant="ghost" size="xs" className="tool-button">
-          <Redo2 className="w-3.5 h-3.5" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-5 mx-1" />
-
-        <Button variant="ghost" size="xs" className="tool-button">
-          <FlipHorizontal className="w-3.5 h-3.5" />
-        </Button>
-        <Button variant="ghost" size="xs" className="tool-button">
-          <FlipVertical className="w-3.5 h-3.5" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-5 mx-1" />
-
-        <Button
-          variant="ghost"
-          size="xs"
-          className={`tool-button ${showGrid ? 'active' : ''}`}
-          onClick={toggleGrid}
-        >
-          <Grid3X3 className="w-3.5 h-3.5" />
-        </Button>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

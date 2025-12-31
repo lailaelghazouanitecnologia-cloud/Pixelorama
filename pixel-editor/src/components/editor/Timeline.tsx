@@ -1,6 +1,9 @@
+/**
+ * Timeline Component - Animation timeline
+ * Based on Pixelorama's AnimationTimeline
+ */
+
 import { useEditorStore } from "@/store/editor-store"
-import { Button } from "@/components/ui/button"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import {
   Play,
   Pause,
@@ -12,8 +15,12 @@ import {
   ChevronFirst,
   ChevronLast,
   Settings,
+  Eye,
+  EyeOff,
+  GripVertical,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 export function Timeline() {
   const {
@@ -23,159 +30,312 @@ export function Timeline() {
     isPlaying,
     setCurrentFrame,
     addFrame,
+    duplicateFrame,
     deleteFrame,
     setFps,
     togglePlay,
+    nextFrame,
+    prevFrame,
     layers,
+    currentLayerIndex,
+    setCurrentLayer,
+    toggleLayerVisibility,
+    showOnionSkin,
+    toggleOnionSkin,
   } = useEditorStore()
 
   // For demo, show at least current state as frame 1
   const displayFrames = frames.length > 0 ? frames : [{ id: 'frame-1', layers, duration: 1000 / fps }]
 
   return (
-    <div className="h-32 bg-card border-t border-border flex flex-col">
-      {/* Timeline Header */}
-      <div className="h-8 border-b border-border flex items-center px-2 gap-2">
-        {/* Playback Controls */}
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0">
-            <ChevronFirst className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0">
-            <SkipBack className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            className={cn("h-6 w-6 p-0", isPlaying && "text-primary")}
-            onClick={togglePlay}
-          >
-            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          </Button>
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0">
-            <SkipForward className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0">
-            <ChevronLast className="w-3.5 h-3.5" />
-          </Button>
-        </div>
+    <TooltipProvider delayDuration={300}>
+      <div
+        className="flex flex-col"
+        style={{
+          height: '140px',
+          backgroundColor: 'var(--pix-bg)',
+          borderTop: '1px solid var(--pix-border)'
+        }}
+      >
+        {/* Timeline Header */}
+        <div
+          className="h-7 flex items-center px-2 gap-1"
+          style={{
+            backgroundColor: 'var(--pix-bg-secondary)',
+            borderBottom: '1px solid var(--pix-border)'
+          }}
+        >
+          {/* Playback Controls */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={() => setCurrentFrame(0)}>
+                  <ChevronFirst className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">First Frame</TooltipContent>
+            </Tooltip>
 
-        <div className="h-4 w-px bg-border" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={prevFrame}>
+                  <SkipBack className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Previous Frame</TooltipContent>
+            </Tooltip>
 
-        {/* Frame Actions */}
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0" onClick={addFrame} title="Add Frame">
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="xs" className="h-6 w-6 p-0" title="Duplicate Frame">
-            <Copy className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            className="h-6 w-6 p-0 hover:text-destructive"
-            onClick={() => deleteFrame(currentFrameIndex)}
-            disabled={displayFrames.length <= 1}
-            title="Delete Frame"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={cn("icon-btn", isPlaying && "active")}
+                  onClick={togglePlay}
+                >
+                  {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                {isPlaying ? 'Pause' : 'Play'} <span className="text-pix-text-muted">Space</span>
+              </TooltipContent>
+            </Tooltip>
 
-        <div className="flex-1" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={nextFrame}>
+                  <SkipForward className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Next Frame</TooltipContent>
+            </Tooltip>
 
-        {/* FPS */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">FPS:</span>
-          <input
-            type="number"
-            value={fps}
-            onChange={(e) => setFps(Math.max(1, Math.min(60, parseInt(e.target.value) || 12)))}
-            className="w-10 px-1.5 py-0.5 bg-secondary rounded text-xs font-mono text-center"
-          />
-        </div>
-
-        <div className="h-4 w-px bg-border" />
-
-        {/* Frame Info */}
-        <span className="text-[10px] text-muted-foreground">
-          Frame {currentFrameIndex + 1}/{displayFrames.length}
-        </span>
-
-        <Button variant="ghost" size="xs" className="h-6 w-6 p-0">
-          <Settings className="w-3.5 h-3.5" />
-        </Button>
-      </div>
-
-      {/* Timeline Content */}
-      <div className="flex-1 flex">
-        {/* Layer Names */}
-        <div className="w-32 border-r border-border flex flex-col">
-          <div className="h-6 border-b border-border px-2 flex items-center">
-            <span className="text-[10px] text-muted-foreground">Layers</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={() => setCurrentFrame(displayFrames.length - 1)}>
+                  <ChevronLast className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Last Frame</TooltipContent>
+            </Tooltip>
           </div>
-          <ScrollArea className="flex-1">
-            <div className="flex flex-col">
-              {[...layers].reverse().map((layer, i) => (
-                <div
-                  key={layer.id}
-                  className="h-8 px-2 flex items-center border-b border-border/50"
+
+          <div className="separator-v h-4 mx-1" />
+
+          {/* Frame Actions */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={addFrame}>
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Add Frame</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="icon-btn" onClick={() => duplicateFrame(currentFrameIndex)}>
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Duplicate Frame</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="icon-btn hover:text-red-400"
+                  onClick={() => deleteFrame(currentFrameIndex)}
+                  disabled={displayFrames.length <= 1}
                 >
-                  <span className="text-[10px] truncate">{layer.name}</span>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">Delete Frame</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="separator-v h-4 mx-1" />
+
+          {/* Onion Skin Toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={cn("icon-btn", showOnionSkin && "active")}
+                onClick={toggleOnionSkin}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="8" opacity="0.3" />
+                  <circle cx="10" cy="12" r="8" opacity="0.5" />
+                  <circle cx="8" cy="12" r="8" opacity="0.7" />
+                </svg>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">Onion Skinning</TooltipContent>
+          </Tooltip>
+
+          <div className="flex-1" />
+
+          {/* FPS Control */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-pix-xs text-pix-text-muted">FPS:</span>
+            <input
+              type="number"
+              className="input w-10 text-center text-pix-xs py-0"
+              value={fps}
+              onChange={(e) => setFps(Math.max(1, Math.min(60, parseInt(e.target.value) || 12)))}
+              min={1}
+              max={60}
+            />
+          </div>
+
+          <div className="separator-v h-4 mx-1" />
+
+          {/* Frame Info */}
+          <span className="text-pix-xs text-pix-text-muted">
+            {currentFrameIndex + 1}/{displayFrames.length}
+          </span>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="icon-btn">
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="tooltip">Animation Settings</TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Frames Grid */}
-        <ScrollArea className="flex-1">
-          <div className="min-w-max">
-            {/* Frame Numbers */}
-            <div className="h-6 border-b border-border flex">
-              {displayFrames.map((frame, i) => (
-                <div
-                  key={frame.id}
-                  className={cn(
-                    "w-12 flex items-center justify-center border-r border-border/50 text-[10px] cursor-pointer transition-colors",
-                    i === currentFrameIndex ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"
-                  )}
-                  onClick={() => setCurrentFrame(i)}
-                >
-                  {i + 1}
-                </div>
-              ))}
-              {/* Add frame button */}
-              <button
-                className="w-12 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                onClick={addFrame}
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+        {/* Timeline Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Layer Names Column */}
+          <div
+            className="w-28 flex flex-col shrink-0"
+            style={{ borderRight: '1px solid var(--pix-border)' }}
+          >
+            {/* Header */}
+            <div
+              className="h-5 flex items-center px-2 shrink-0"
+              style={{
+                backgroundColor: 'var(--pix-bg-secondary)',
+                borderBottom: '1px solid var(--pix-border)'
+              }}
+            >
+              <span className="text-pix-xs text-pix-text-muted">Layers</span>
             </div>
 
-            {/* Cells */}
-            {[...layers].reverse().map((layer) => (
-              <div key={layer.id} className="h-8 flex border-b border-border/50">
+            {/* Layer List */}
+            <div className="flex-1 overflow-y-auto">
+              {[...layers].reverse().map((layer, reverseIndex) => {
+                const index = layers.length - 1 - reverseIndex
+                return (
+                  <div
+                    key={layer.id}
+                    className={cn(
+                      "h-8 flex items-center gap-1 px-1 cursor-pointer",
+                      index === currentLayerIndex && "bg-pix-accent/30"
+                    )}
+                    style={{ borderBottom: '1px solid var(--pix-border-light)' }}
+                    onClick={() => setCurrentLayer(index)}
+                  >
+                    <GripVertical className="w-3 h-3 text-pix-text-muted cursor-grab" />
+                    <button
+                      className="icon-btn p-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleLayerVisibility(index)
+                      }}
+                    >
+                      {layer.visible ? (
+                        <Eye className="w-3 h-3" />
+                      ) : (
+                        <EyeOff className="w-3 h-3 text-pix-text-muted" />
+                      )}
+                    </button>
+                    <span className="text-pix-xs truncate flex-1">{layer.name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Frames Grid */}
+          <div className="flex-1 overflow-x-auto">
+            <div className="min-w-max">
+              {/* Frame Numbers Header */}
+              <div
+                className="h-5 flex"
+                style={{
+                  backgroundColor: 'var(--pix-bg-secondary)',
+                  borderBottom: '1px solid var(--pix-border)'
+                }}
+              >
                 {displayFrames.map((frame, i) => (
                   <div
                     key={frame.id}
                     className={cn(
-                      "w-12 border-r border-border/50 flex items-center justify-center cursor-pointer transition-colors",
-                      i === currentFrameIndex ? "bg-primary/10" : "hover:bg-accent/50"
+                      "w-10 flex items-center justify-center text-pix-xs cursor-pointer transition-colors",
+                      i === currentFrameIndex
+                        ? "bg-pix-accent text-white"
+                        : "text-pix-text-muted hover:bg-pix-bg-tertiary"
                     )}
+                    style={{ borderRight: '1px solid var(--pix-border-light)' }}
                     onClick={() => setCurrentFrame(i)}
                   >
-                    {/* Cell thumbnail would go here */}
-                    <div className="w-6 h-6 rounded-sm bg-secondary/50 checker-bg" />
+                    {i + 1}
                   </div>
                 ))}
+                {/* Add frame button */}
+                <button
+                  className="w-10 flex items-center justify-center text-pix-text-muted hover:text-pix-text transition-colors"
+                  onClick={addFrame}
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
               </div>
-            ))}
+
+              {/* Frame Cells */}
+              {[...layers].reverse().map((layer, reverseIndex) => {
+                const index = layers.length - 1 - reverseIndex
+                return (
+                  <div
+                    key={layer.id}
+                    className="h-8 flex"
+                    style={{ borderBottom: '1px solid var(--pix-border-light)' }}
+                  >
+                    {displayFrames.map((frame, frameIndex) => (
+                      <div
+                        key={frame.id}
+                        className={cn(
+                          "w-10 flex items-center justify-center cursor-pointer transition-colors",
+                          frameIndex === currentFrameIndex && "bg-pix-accent/10",
+                          index === currentLayerIndex && frameIndex === currentFrameIndex && "bg-pix-accent/20"
+                        )}
+                        style={{ borderRight: '1px solid var(--pix-border-light)' }}
+                        onClick={() => {
+                          setCurrentFrame(frameIndex)
+                          setCurrentLayer(index)
+                        }}
+                      >
+                        {/* Cell indicator - shows if frame has content */}
+                        <div
+                          className={cn(
+                            "w-5 h-5 rounded-sm",
+                            layer.data ? "bg-pix-text/30" : "bg-pix-bg-tertiary"
+                          )}
+                          style={{
+                            backgroundImage: layer.data ? undefined : 'linear-gradient(45deg, transparent 50%, var(--pix-border-light) 50%)',
+                            backgroundSize: '4px 4px'
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
