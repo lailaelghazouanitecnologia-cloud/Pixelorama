@@ -1,0 +1,265 @@
+/**
+ * BaseDrawTool - Base class for drawing/painting tools.
+ * Extends BaseTool with brush, color, and drawing-specific functionality.
+ * Mirrors Pixelorama's BaseDraw.gd
+ */
+
+import { BaseTool } from './BaseTool'
+import type { Point, ToolConfig, CanvasMouseEvent, DrawingContext, BrushConfig } from '@/core/types'
+import { DEFAULT_BRUSH_SIZE, DEFAULT_BRUSH_OPACITY } from '@/core/constants'
+import { bresenhamLine } from '@/lib/drawing'
+
+// ============================================================================
+// Draw Tool Config
+// ============================================================================
+
+export interface DrawToolConfig extends ToolConfig {
+  brushSize: number
+  brushOpacity: number
+  pixelPerfect: boolean
+}
+
+// ============================================================================
+// BaseDrawTool Class
+// ============================================================================
+
+export abstract class BaseDrawTool extends BaseTool {
+  // Brush settings
+  protected brushSize: number = DEFAULT_BRUSH_SIZE
+  protected brushOpacity: number = DEFAULT_BRUSH_OPACITY
+  protected pixelPerfect: boolean = false
+
+  // Drawing state
+  protected isEraser: boolean = false
+
+  // Undo data
+  protected undoImageData: ImageData | null = null
+
+  // ============================================================================
+  // Configuration
+  // ============================================================================
+
+  override getConfig(): DrawToolConfig {
+    return {
+      ...super.getConfig(),
+      brushSize: this.brushSize,
+      brushOpacity: this.brushOpacity,
+      pixelPerfect: this.pixelPerfect,
+    }
+  }
+
+  override setConfig(config: Partial<DrawToolConfig>): void {
+    if (config.brushSize !== undefined) {
+      this.brushSize = Math.max(1, Math.min(128, config.brushSize))
+    }
+    if (config.brushOpacity !== undefined) {
+      this.brushOpacity = Math.max(0, Math.min(100, config.brushOpacity))
+    }
+    if (config.pixelPerfect !== undefined) {
+      this.pixelPerfect = config.pixelPerfect
+    }
+    super.setConfig(config)
+  }
+
+  // ============================================================================
+  // Brush Methods
+  // ============================================================================
+
+  /**
+   * Get current brush size.
+   */
+  getBrushSize(): number {
+    return this.brushSize
+  }
+
+  /**
+   * Set brush size.
+   */
+  setBrushSize(size: number): void {
+    this.brushSize = Math.max(1, Math.min(128, size))
+    this.saveConfig()
+  }
+
+  /**
+   * Get brush opacity (0-100).
+   */
+  getBrushOpacity(): number {
+    return this.brushOpacity
+  }
+
+  /**
+   * Set brush opacity.
+   */
+  setBrushOpacity(opacity: number): void {
+    this.brushOpacity = Math.max(0, Math.min(100, opacity))
+    this.saveConfig()
+  }
+
+  /**
+   * Get brush configuration.
+   */
+  getBrushConfig(): BrushConfig {
+    return {
+      size: this.brushSize,
+      opacity: this.brushOpacity,
+      hardness: 100,
+      spacing: 0,
+    }
+  }
+
+  // ============================================================================
+  // Drawing Implementation
+  // ============================================================================
+
+  protected override onDrawStart(
+    pos: Point,
+    event: CanvasMouseEvent,
+    ctx: DrawingContext
+  ): void {
+    // Save undo data before starting
+    this.prepareUndo(ctx)
+
+    // Draw initial point
+    this.drawBrush(pos, ctx)
+  }
+
+  protected override onDrawMove(
+    pos: Point,
+    _event: CanvasMouseEvent,
+    ctx: DrawingContext
+  ): void {
+    const lastPoint = this.getLastPoint()
+
+    if (lastPoint) {
+      // Use Bresenham's algorithm for smooth lines
+      this.drawLineBetween(lastPoint, pos, ctx)
+    } else {
+      this.drawBrush(pos, ctx)
+    }
+  }
+
+  protected override onDrawEnd(
+    pos: Point,
+    _event: CanvasMouseEvent,
+    ctx: DrawingContext
+  ): void {
+    // Draw final point
+    this.drawBrush(pos, ctx)
+
+    // Commit undo
+    this.commitUndo(ctx)
+  }
+
+  protected override onDrawCancel(): void {
+    // Restore from undo data
+    // This would require access to canvas context
+    this.undoImageData = null
+  }
+
+  // ============================================================================
+  // Brush Drawing
+  // ============================================================================
+
+  /**
+   * Draw brush at a single point.
+   */
+  protected drawBrush(pos: Point, ctx: DrawingContext): void {
+    const { ctx: context, canvas } = ctx
+    const halfSize = Math.floor(this.brushSize / 2)
+
+    for (let dy = 0; dy < this.brushSize; dy++) {
+      for (let dx = 0; dx < this.brushSize; dx++) {
+        const px = pos.x - halfSize + dx
+        const py = pos.y - halfSize + dy
+
+        // Bounds check
+        if (px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) {
+          continue
+        }
+
+        // Cache check to prevent overdraw
+        const cacheKey = { x: px, y: py }
+        if (this.isInCache(cacheKey)) {
+          continue
+        }
+        this.addToCache(cacheKey)
+
+        // Draw pixel
+        this.drawPixel(px, py, context, ctx)
+      }
+    }
+  }
+
+  /**
+   * Draw a single pixel.
+   * Override in subclasses for different behavior (eraser, etc.)
+   */
+  protected drawPixel(
+    x: number,
+    y: number,
+    context: CanvasRenderingContext2D,
+    ctx: DrawingContext
+  ): void {
+    if (this.isEraser) {
+      context.clearRect(x, y, 1, 1)
+    } else {
+      context.fillStyle = ctx.color
+      context.globalAlpha = this.brushOpacity / 100
+      context.fillRect(x, y, 1, 1)
+      context.globalAlpha = 1
+    }
+  }
+
+  /**
+   * Draw line between two points using Bresenham's algorithm.
+   */
+  protected drawLineBetween(from: Point, to: Point, ctx: DrawingContext): void {
+    const points = bresenhamLine(from.x, from.y, to.x, to.y)
+
+    for (const point of points) {
+      this.drawBrush(point, ctx)
+    }
+  }
+
+  // ============================================================================
+  // Undo/Redo
+  // ============================================================================
+
+  /**
+   * Prepare undo data before drawing.
+   */
+  protected prepareUndo(ctx: DrawingContext): void {
+    const { ctx: context, canvas } = ctx
+    this.undoImageData = context.getImageData(0, 0, canvas.width, canvas.height)
+  }
+
+  /**
+   * Commit undo data after drawing.
+   * This would integrate with a history system.
+   */
+  protected commitUndo(_ctx: DrawingContext): void {
+    // TODO: Integrate with history system
+    // For now, just clear the undo data
+    this.undoImageData = null
+  }
+
+  // ============================================================================
+  // Indicator
+  // ============================================================================
+
+  override drawIndicator(
+    ctx: CanvasRenderingContext2D,
+    pos: Point,
+    color: string
+  ): void {
+    const halfSize = Math.floor(this.brushSize / 2)
+    const x = pos.x - halfSize
+    const y = pos.y - halfSize
+
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+
+    // Draw brush outline
+    ctx.strokeRect(x + 0.5, y + 0.5, this.brushSize - 1, this.brushSize - 1)
+  }
+}

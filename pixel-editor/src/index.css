@@ -2,60 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Pixelorama-exact theme colors and styling
+ * Extracted directly from Pixelorama's theme files
+ */
+
 @layer base {
   :root {
-    --background: 220 15% 8%;
-    --foreground: 210 20% 90%;
-    --card: 220 15% 10%;
-    --card-foreground: 210 20% 90%;
-    --popover: 220 15% 12%;
-    --popover-foreground: 210 20% 90%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 210 20% 90%;
-    --muted: 220 15% 15%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 220 15% 18%;
-    --accent-foreground: 210 20% 90%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
-    --ring: 217 91% 60%;
-    --radius: 0.375rem;
+    /* Pixelorama exact colors */
+    --pix-bg-base: #242424;
+    --pix-bg-secondary: #3b3b3b;
+    --pix-bg-tertiary: #2d2d2d;
+    --pix-bg-hover: #4a4a4a;
+    --pix-bg-pressed: #525252;
+
+    --pix-text-primary: #c6c6c6;
+    --pix-text-secondary: #a0a0a0;
+    --pix-text-muted: #808080;
+    --pix-text-disabled: #666666;
+
+    --pix-accent: #3b7cd8;
+    --pix-accent-hover: #4a8be7;
+    --pix-accent-pressed: #2a6bc7;
+    --pix-accent-muted: rgba(59, 124, 216, 0.3);
+
+    --pix-border: #4d4d4d;
+    --pix-border-light: #5a5a5a;
+    --pix-border-dark: #1a1a1a;
+
+    --pix-error: #cc3333;
+    --pix-success: #46a049;
+    --pix-warning: #c68c00;
+
+    /* Shadcn mappings */
+    --background: 0 0% 14.1%;
+    --foreground: 0 0% 77.6%;
+    --card: 0 0% 17.6%;
+    --card-foreground: 0 0% 77.6%;
+    --popover: 0 0% 14.1%;
+    --popover-foreground: 0 0% 77.6%;
+    --primary: 214 65% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 23.1%;
+    --secondary-foreground: 0 0% 77.6%;
+    --muted: 0 0% 23.1%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 0 0% 29.2%;
+    --accent-foreground: 0 0% 77.6%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 30.2%;
+    --input: 0 0% 30.2%;
+    --ring: 214 65% 52%;
+    --radius: 3px;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--pix-bg-base);
+    color: var(--pix-text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Scrollbar */
+/* Scrollbars - Pixelorama style */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: hsl(220 15% 10%);
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(220 15% 25%);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(220 15% 35%);
+  width: 10px;
+  height: 10px;
 }
 
-/* Canvas */
+::-webkit-scrollbar-track {
+  background: var(--pix-bg-base);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--pix-bg-secondary);
+  border-radius: 10px;
+  border: 2px solid var(--pix-bg-base);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pix-bg-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--pix-bg-base);
+}
+
+/* Canvas rendering */
 .pixel-canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -64,70 +116,649 @@
 /* Checker pattern for transparency */
 .checker-bg {
   background-image:
-    linear-gradient(45deg, hsl(220 15% 12%) 25%, transparent 25%),
-    linear-gradient(-45deg, hsl(220 15% 12%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, hsl(220 15% 12%) 75%),
-    linear-gradient(-45deg, transparent 75%, hsl(220 15% 12%) 75%);
+    linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1a1a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1a1a 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-  background-color: hsl(220 15% 8%);
+  background-color: var(--pix-bg-base);
 }
 
-/* Panel styles like Pixelorama */
+/* Panel - Pixelorama style */
 .panel {
-  @apply bg-card border border-border rounded-md;
+  background-color: var(--pix-bg-secondary);
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
 }
 
 .panel-header {
-  @apply flex items-center justify-between px-2 py-1.5 border-b border-border bg-secondary/50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background-color: var(--pix-bg-tertiary);
+  border-bottom: 1px solid var(--pix-border);
+  border-radius: 3px 3px 0 0;
 }
 
 .panel-title {
-  @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pix-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* Tool button */
+.panel-content {
+  padding: 4px;
+}
+
+/* Buttons - Pixelorama style */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-secondary);
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+
+.btn:hover {
+  background-color: var(--pix-bg-hover);
+  border-color: var(--pix-border-light);
+}
+
+.btn:active {
+  background-color: var(--pix-bg-pressed);
+}
+
+.btn:disabled {
+  color: var(--pix-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background-color: var(--pix-accent);
+  border-color: var(--pix-accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--pix-accent-hover);
+  border-color: var(--pix-accent-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--pix-accent-pressed);
+}
+
+/* Tool button - Pixelorama toolbar style */
 .tool-button {
-  @apply flex items-center justify-center w-8 h-8 rounded-md transition-colors;
-  @apply text-muted-foreground hover:text-foreground hover:bg-accent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: var(--pix-text-secondary);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.tool-button:hover {
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-hover);
 }
 
 .tool-button.active {
-  @apply bg-primary/20 text-primary border border-primary/30;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-accent-muted);
+  border-color: var(--pix-accent);
 }
 
-/* Color swatch */
+.tool-button:disabled {
+  color: var(--pix-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Menu bar - Pixelorama style */
+.menu-bar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 4px;
+  background-color: var(--pix-bg-tertiary);
+  border-bottom: 1px solid var(--pix-border);
+}
+
+.menu-item {
+  padding: 2px 8px;
+  font-size: 13px;
+  color: var(--pix-text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background-color: var(--pix-bg-hover);
+}
+
+/* Input fields - Pixelorama style */
+.input {
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-base);
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--pix-accent);
+}
+
+.input:disabled {
+  color: var(--pix-text-disabled);
+  background-color: var(--pix-bg-tertiary);
+}
+
+/* Slider - Pixelorama style */
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--pix-bg-base);
+  border-radius: 2px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--pix-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--pix-bg-secondary);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: var(--pix-accent-hover);
+}
+
+.slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--pix-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--pix-bg-secondary);
+}
+
+/* Checkbox - Pixelorama style */
+.checkbox {
+  width: 14px;
+  height: 14px;
+  background-color: var(--pix-bg-base);
+  border: 1px solid var(--pix-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.checkbox:checked {
+  background-color: var(--pix-accent);
+  border-color: var(--pix-accent);
+}
+
+/* Tabs - Pixelorama style */
+.tab-list {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background-color: var(--pix-bg-tertiary);
+  border-radius: 3px;
+}
+
+.tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--pix-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-hover);
+}
+
+.tab.active {
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-secondary);
+}
+
+/* Color swatch - Pixelorama style */
 .color-swatch {
-  @apply w-6 h-6 rounded cursor-pointer border border-transparent transition-all;
-  @apply hover:scale-110 hover:border-foreground/30;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--pix-border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+  border-color: var(--pix-border-light);
 }
 
 .color-swatch.active {
-  @apply ring-2 ring-primary ring-offset-1 ring-offset-background;
+  border-color: var(--pix-accent);
+  box-shadow: 0 0 0 2px var(--pix-accent-muted);
 }
 
-/* Layer item */
+/* Primary/Secondary color display */
+.color-display {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+
+.color-primary {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--pix-border);
+  border-radius: 3px;
+  z-index: 2;
+}
+
+.color-secondary {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--pix-border);
+  border-radius: 3px;
+  z-index: 1;
+}
+
+/* Layer item - Pixelorama style */
 .layer-item {
-  @apply flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors;
-  @apply hover:bg-accent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.layer-item:hover {
+  background-color: var(--pix-bg-hover);
 }
 
 .layer-item.active {
-  @apply bg-primary/15 border border-primary/25;
+  background-color: var(--pix-accent-muted);
+  border-color: var(--pix-accent);
 }
 
-/* Frame in timeline */
-.frame-thumb {
-  @apply w-12 h-12 rounded border-2 border-transparent bg-secondary flex items-center justify-center;
-  @apply cursor-pointer transition-all hover:border-muted-foreground;
+.layer-thumb {
+  width: 32px;
+  height: 32px;
+  background-color: var(--pix-bg-base);
+  border: 1px solid var(--pix-border);
+  border-radius: 2px;
 }
 
-.frame-thumb.active {
-  @apply border-primary bg-primary/10;
+.layer-name {
+  flex: 1;
+  font-size: 12px;
+  color: var(--pix-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-visibility {
+  width: 16px;
+  height: 16px;
+  color: var(--pix-text-secondary);
+  cursor: pointer;
+}
+
+.layer-visibility:hover {
+  color: var(--pix-text-primary);
+}
+
+.layer-visibility.hidden {
+  color: var(--pix-text-disabled);
+}
+
+/* Frame cell - Pixelorama timeline style */
+.frame-cell {
+  width: 40px;
+  height: 40px;
+  background-color: var(--pix-bg-tertiary);
+  border: 1px solid var(--pix-border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+
+.frame-cell:hover {
+  border-color: var(--pix-text-muted);
+}
+
+.frame-cell.active {
+  border-color: var(--pix-accent);
+  border-width: 2px;
+}
+
+.frame-cell.keyframe {
+  background-color: var(--pix-bg-secondary);
 }
 
 /* Resize handle */
 .resize-handle {
-  @apply absolute bg-transparent cursor-ew-resize;
-  @apply hover:bg-primary/50 transition-colors;
+  position: absolute;
+  background: transparent;
+  cursor: ew-resize;
+  transition: background-color 0.1s;
+}
+
+.resize-handle:hover {
+  background-color: var(--pix-accent-muted);
+}
+
+.resize-handle-ns {
+  cursor: ns-resize;
+}
+
+/* Tooltip - Pixelorama style */
+.tooltip {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-tertiary);
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Status bar - Pixelorama style */
+.status-bar {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--pix-text-secondary);
+  background-color: var(--pix-bg-tertiary);
+  border-top: 1px solid var(--pix-border);
+}
+
+.status-item {
+  padding: 0 8px;
+  border-right: 1px solid var(--pix-border);
+}
+
+.status-item:last-child {
+  border-right: none;
+}
+
+/* Dialog/Modal - Pixelorama style */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+}
+
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 300px;
+  background-color: var(--pix-bg-secondary);
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 101;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background-color: var(--pix-bg-tertiary);
+  border-bottom: 1px solid var(--pix-border);
+  border-radius: 3px 3px 0 0;
+}
+
+.dialog-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pix-text-primary);
+}
+
+.dialog-content {
+  padding: 10px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--pix-border);
+}
+
+/* Separator */
+.separator {
+  height: 1px;
+  background-color: var(--pix-border);
+  margin: 4px 0;
+}
+
+.separator-vertical {
+  width: 1px;
+  height: 100%;
+  background-color: var(--pix-border);
+  margin: 0 4px;
+}
+
+/* Icon button (small) */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  color: var(--pix-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-hover);
+}
+
+.icon-btn:disabled {
+  color: var(--pix-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Dropdown/Select - Pixelorama style */
+.select {
+  padding: 4px 24px 4px 6px;
+  font-size: 13px;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-base);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.select:focus {
+  border-color: var(--pix-accent);
+  outline: none;
+}
+
+/* Number input with spinner */
+.spin-box {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--pix-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.spin-box input {
+  width: 50px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-base);
+  border: none;
+  text-align: center;
+  outline: none;
+}
+
+.spin-box button {
+  width: 18px;
+  height: 24px;
+  color: var(--pix-text-secondary);
+  background-color: var(--pix-bg-secondary);
+  border: none;
+  cursor: pointer;
+}
+
+.spin-box button:hover {
+  color: var(--pix-text-primary);
+  background-color: var(--pix-bg-hover);
+}
+
+/* Label */
+.label {
+  font-size: 12px;
+  color: var(--pix-text-secondary);
+  margin-bottom: 4px;
+}
+
+/* Form row */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.form-row label {
+  min-width: 80px;
+  font-size: 12px;
+  color: var(--pix-text-secondary);
+}
+
+/* Progress bar - Pixelorama style */
+.progress {
+  height: 4px;
+  background-color: var(--pix-bg-base);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--pix-accent);
+  transition: width 0.2s;
+}
+
+/* Canvas container */
+.canvas-container {
+  position: relative;
+  flex: 1;
+  background-color: var(--pix-bg-base);
+  overflow: hidden;
+}
+
+.canvas-viewport {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ruler */
+.ruler {
+  background-color: var(--pix-bg-tertiary);
+  border: 1px solid var(--pix-border);
+}
+
+.ruler-h {
+  height: 16px;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.ruler-v {
+  width: 16px;
+  border-top: none;
+  border-left: none;
+  border-bottom: none;
+}
+
+/* Splitter */
+.splitter {
+  background-color: var(--pix-border);
+  transition: background-color 0.1s;
+}
+
+.splitter:hover {
+  background-color: var(--pix-accent);
+}
+
+.splitter-h {
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.splitter-v {
+  width: 4px;
+  cursor: ew-resize;
 }
