@@ -20,17 +20,19 @@ function App() {
         return
       }
 
-      // Tool shortcuts
+      // Tool shortcuts (must match ToolName type)
       const toolShortcuts: Record<string, Parameters<typeof setTool>[0]> = {
         b: "pencil",
         e: "eraser",
         g: "bucket",
-        i: "picker",
+        i: "colorPicker",
         l: "line",
-        r: "rect",
+        r: "rectangle",
         o: "ellipse",
-        m: "select",
+        m: "rectSelect",
+        w: "magicWand",
         v: "move",
+        h: "pan",
         z: "zoom",
       }
 
