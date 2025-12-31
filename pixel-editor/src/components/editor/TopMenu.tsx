@@ -3,7 +3,7 @@
  * Based on Pixelorama's TopMenuContainer
  */
 
-import { useCallback, useRef } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   Menubar,
   MenubarContent,
@@ -20,9 +20,13 @@ import {
 import { useEditorStore } from "@/store/editor-store"
 import { getHistory } from "@/core/history"
 import { downloadCanvas } from "@/core/export"
+import { NewProjectDialog, ExportDialog, ResizeCanvasDialog } from "@/components/dialogs"
 
 export function TopMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [resizeOpen, setResizeOpen] = useState(false)
 
   const {
     projectName,
@@ -57,11 +61,8 @@ export function TopMenu() {
 
   // File operations
   const handleNew = useCallback(() => {
-    if (confirm('Create new project? Unsaved changes will be lost.')) {
-      newProject(64, 64)
-      history.clear()
-    }
-  }, [newProject, history])
+    setNewProjectOpen(true)
+  }, [])
 
   const handleOpen = useCallback(() => {
     fileInputRef.current?.click()
@@ -135,12 +136,13 @@ export function TopMenu() {
               Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
+            <MenubarItem onClick={() => setExportOpen(true)}>
+              Export... <MenubarShortcut>Ctrl+E</MenubarShortcut>
+            </MenubarItem>
             <MenubarSub>
-              <MenubarSubTrigger>Export</MenubarSubTrigger>
+              <MenubarSubTrigger>Quick Export</MenubarSubTrigger>
               <MenubarSubContent className="panel">
-                <MenubarItem onClick={handleExportPNG}>
-                  PNG <MenubarShortcut>Ctrl+E</MenubarShortcut>
-                </MenubarItem>
+                <MenubarItem onClick={handleExportPNG}>PNG</MenubarItem>
                 <MenubarItem onClick={handleExportJPEG}>JPEG</MenubarItem>
                 <MenubarItem>WebP</MenubarItem>
                 <MenubarSeparator className="separator" />
@@ -233,7 +235,7 @@ export function TopMenu() {
         <MenubarMenu>
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Image</MenubarTrigger>
           <MenubarContent className="panel">
-            <MenubarItem>Resize Canvas...</MenubarItem>
+            <MenubarItem onClick={() => setResizeOpen(true)}>Resize Canvas...</MenubarItem>
             <MenubarItem>Scale Image...</MenubarItem>
             <MenubarItem>Crop to Selection</MenubarItem>
             <MenubarSeparator className="separator" />
@@ -326,6 +328,11 @@ export function TopMenu() {
           {projectName} ({width}×{height})
         </span>
       </Menubar>
+
+      {/* Dialogs */}
+      <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <ResizeCanvasDialog open={resizeOpen} onOpenChange={setResizeOpen} />
     </>
   )
 }
