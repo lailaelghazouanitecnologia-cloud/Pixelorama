@@ -8,6 +8,8 @@ import { useEditorStore } from "@/store/editor-store"
 import { getHistory, captureCanvasState } from "@/core/history"
 import { ToolRegistry } from "@/tools/registry"
 import { bresenhamLine, floodFill, hexToRgb } from "@/lib/drawing"
+import { useSelection } from "@/hooks/useSelection"
+import { SelectionOperation, type SelectionRect } from "@/core/selection"
 
 // Import and register tools
 import "@/tools/design/Pencil"
@@ -20,6 +22,8 @@ import "@/tools/utility/Pan"
 import "@/tools/utility/Zoom"
 import "@/tools/utility/ColorPicker"
 import "@/tools/utility/Move"
+import "@/tools/selection/RectSelect"
+import "@/tools/selection/MagicWand"
 
 interface Point {
   x: number
@@ -29,11 +33,13 @@ interface Point {
 export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const previewCanvasRef = useRef<HTMLCanvasElement>(null)
+  const selectionCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPoint, setLastPoint] = useState<Point | null>(null)
   const [shapeStart, setShapeStart] = useState<Point | null>(null)
   const [preDrawImageData, setPreDrawImageData] = useState<ImageData | null>(null)
+  const [selectionPreview, setSelectionPreview] = useState<SelectionRect | null>(null)
 
   const {
     width,
@@ -55,7 +61,79 @@ export function Canvas() {
     setPrimaryColor,
     setSecondaryColor,
     history,
+    selection,
   } = useEditorStore()
+
+  // Selection management
+  const {
+    hasSelection,
+    selectRect,
+    selectMask,
+    selectAll: doSelectAll,
+    clearSelection,
+    invertSelection,
+    isSelected,
+    getMask,
+  } = useSelection({
+    canvas: canvasRef.current,
+    overlayCanvas: selectionCanvasRef.current,
+  })
+
+  // Helper: Flood fill selection mask (for magic wand)
+  const floodSelectMask = useCallback((
+    imageData: ImageData,
+    startX: number,
+    startY: number,
+    tolerance: number = 0
+  ): Uint8Array => {
+    const data = imageData.data
+    const w = imageData.width
+    const h = imageData.height
+    const mask = new Uint8Array(w * h)
+
+    if (startX < 0 || startX >= w || startY < 0 || startY >= h) {
+      return mask
+    }
+
+    // Get target color
+    const targetIndex = (startY * w + startX) * 4
+    const targetR = data[targetIndex]
+    const targetG = data[targetIndex + 1]
+    const targetB = data[targetIndex + 2]
+    const targetA = data[targetIndex + 3]
+
+    const stack: Point[] = [{ x: startX, y: startY }]
+    const visited = new Set<number>()
+
+    const colorsMatch = (index: number): boolean => {
+      const pixelIndex = index * 4
+      const dr = Math.abs(data[pixelIndex] - targetR)
+      const dg = Math.abs(data[pixelIndex + 1] - targetG)
+      const db = Math.abs(data[pixelIndex + 2] - targetB)
+      const da = Math.abs(data[pixelIndex + 3] - targetA)
+      const distance = Math.sqrt(dr * dr + dg * dg + db * db)
+      return distance <= tolerance * 1.732 && da <= tolerance
+    }
+
+    while (stack.length > 0) {
+      const pos = stack.pop()!
+      const index = pos.y * w + pos.x
+
+      if (visited.has(index)) continue
+      if (pos.x < 0 || pos.x >= w || pos.y < 0 || pos.y >= h) continue
+      if (!colorsMatch(index)) continue
+
+      visited.add(index)
+      mask[index] = 255
+
+      stack.push({ x: pos.x + 1, y: pos.y })
+      stack.push({ x: pos.x - 1, y: pos.y })
+      stack.push({ x: pos.x, y: pos.y + 1 })
+      stack.push({ x: pos.x, y: pos.y - 1 })
+    }
+
+    return mask
+  }, [])
 
   // Initialize canvas
   useEffect(() => {
@@ -283,11 +361,33 @@ export function Canvas() {
       case "move":
         // Move tool - to be implemented with selection
         break
+      case "rectSelect":
+        // Start rectangle selection
+        setShapeStart(point)
+        // Check modifier keys for selection mode
+        if (!e.shiftKey && !e.altKey && !e.ctrlKey) {
+          clearSelection()
+        }
+        break
+      case "magicWand":
+        // Magic wand selection - handled via event
+        const magicWandCanvas = canvas
+        const magicWandCtx = magicWandCanvas.getContext("2d")
+        if (magicWandCtx) {
+          const imageData = magicWandCtx.getImageData(0, 0, width, height)
+          const mask = floodSelectMask(imageData, point.x, point.y, 0)
+          const operation = e.shiftKey ? SelectionOperation.ADD
+            : e.altKey ? SelectionOperation.SUBTRACT
+            : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
+            : SelectionOperation.REPLACE
+          selectMask(mask, operation)
+        }
+        break
     }
 
     // Capture pointer for better tracking
     canvas.setPointerCapture(e.pointerId)
-  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, doFloodFill, pickColor, history, zoomIn, zoomOut])
+  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height])
 
   // Handle pointer move
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -330,6 +430,18 @@ export function Canvas() {
       case "colorPicker":
         pickColor(point.x, point.y, isPrimary)
         break
+      case "rectSelect":
+        if (shapeStart) {
+          // Update selection preview
+          const rect: SelectionRect = {
+            x: Math.min(shapeStart.x, point.x),
+            y: Math.min(shapeStart.y, point.y),
+            width: Math.abs(point.x - shapeStart.x),
+            height: Math.abs(point.y - shapeStart.y),
+          }
+          setSelectionPreview(rect)
+        }
+        break
     }
 
     setLastPoint(point)
@@ -342,6 +454,8 @@ export function Canvas() {
     const canvas = canvasRef.current
     if (!canvas) return
 
+    const point = getCanvasPoint(e)
+
     // Add action to history for drawing tools
     if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse'].includes(currentTool)) {
       const afterState = captureCanvasState(canvas)
@@ -351,6 +465,25 @@ export function Canvas() {
       }
     }
 
+    // Finalize rectangle selection
+    if (currentTool === 'rectSelect' && shapeStart) {
+      const rect: SelectionRect = {
+        x: Math.min(shapeStart.x, point.x),
+        y: Math.min(shapeStart.y, point.y),
+        width: Math.max(1, Math.abs(point.x - shapeStart.x)),
+        height: Math.max(1, Math.abs(point.y - shapeStart.y)),
+      }
+
+      // Determine selection operation from modifiers
+      const operation = e.shiftKey ? SelectionOperation.ADD
+        : e.altKey ? SelectionOperation.SUBTRACT
+        : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
+        : SelectionOperation.REPLACE
+
+      selectRect(rect, operation)
+      setSelectionPreview(null)
+    }
+
     setIsDrawing(false)
     setLastPoint(null)
     setShapeStart(null)
@@ -358,7 +491,7 @@ export function Canvas() {
 
     // Release pointer capture
     canvas.releasePointerCapture(e.pointerId)
-  }, [isDrawing, currentTool, preDrawImageData, history])
+  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect])
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -462,6 +595,33 @@ export function Canvas() {
               height: canvasHeight,
             }}
           />
+
+          {/* Selection overlay canvas (marching ants) */}
+          <canvas
+            ref={selectionCanvasRef}
+            width={width}
+            height={height}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              width: canvasWidth,
+              height: canvasHeight,
+              imageRendering: 'pixelated',
+            }}
+          />
+
+          {/* Selection preview (while dragging) */}
+          {selectionPreview && (
+            <div
+              className="absolute pointer-events-none border border-dashed border-white"
+              style={{
+                left: selectionPreview.x * zoom,
+                top: selectionPreview.y * zoom,
+                width: selectionPreview.width * zoom,
+                height: selectionPreview.height * zoom,
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.5)',
+              }}
+            />
+          )}
 
           {/* Grid overlay */}
           {showGrid && zoom >= 4 && (

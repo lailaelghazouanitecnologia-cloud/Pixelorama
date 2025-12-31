@@ -113,16 +113,12 @@ export function Toolbar() {
           label="Rectangle Select"
           shortcut="M"
         />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="tool-button" disabled>
-              <Wand2 className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="tooltip">
-            <p>Magic Wand <span className="text-pix-text-muted ml-2">W</span></p>
-          </TooltipContent>
-        </Tooltip>
+        <ToolButton
+          tool="magicWand"
+          icon={<Wand2 className="w-4 h-4" />}
+          label="Magic Wand"
+          shortcut="W"
+        />
         <Tooltip>
           <TooltipTrigger asChild>
             <button className="tool-button" disabled>
