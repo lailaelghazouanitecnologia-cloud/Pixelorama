@@ -3,6 +3,7 @@
  * Based on Pixelorama's AnimationTimeline
  */
 
+import { useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import {
   Play,
@@ -21,8 +22,11 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { OnionSkinDialog } from "@/components/dialogs"
 
 export function Timeline() {
+  const [onionSkinOpen, setOnionSkinOpen] = useState(false)
+
   const {
     frames,
     currentFrameIndex,
@@ -162,6 +166,10 @@ export function Timeline() {
               <button
                 className={cn("icon-btn", showOnionSkin && "active")}
                 onClick={toggleOnionSkin}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setOnionSkinOpen(true)
+                }}
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="8" opacity="0.3" />
@@ -170,7 +178,9 @@ export function Timeline() {
                 </svg>
               </button>
             </TooltipTrigger>
-            <TooltipContent className="tooltip">Onion Skinning</TooltipContent>
+            <TooltipContent className="tooltip">
+              Onion Skinning (Right-click for settings)
+            </TooltipContent>
           </Tooltip>
 
           <div className="flex-1" />
@@ -336,6 +346,9 @@ export function Timeline() {
           </div>
         </div>
       </div>
+
+      {/* Onion Skin Settings Dialog */}
+      <OnionSkinDialog open={onionSkinOpen} onOpenChange={setOnionSkinOpen} />
     </TooltipProvider>
   )
 }

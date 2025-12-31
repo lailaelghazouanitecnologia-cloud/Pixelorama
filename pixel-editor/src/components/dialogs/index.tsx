@@ -6,3 +6,4 @@
 export { NewProjectDialog } from './NewProjectDialog'
 export { ExportDialog } from './ExportDialog'
 export { ResizeCanvasDialog } from './ResizeCanvasDialog'
+export { OnionSkinDialog } from './OnionSkinDialog'
