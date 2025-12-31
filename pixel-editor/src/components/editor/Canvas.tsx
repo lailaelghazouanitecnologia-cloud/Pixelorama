@@ -21,11 +21,13 @@ import "@/tools/design/Bucket"
 import "@/tools/design/LineTool"
 import "@/tools/design/RectangleTool"
 import "@/tools/design/EllipseTool"
+import "@/tools/design/Shading"
 import "@/tools/utility/Pan"
 import "@/tools/utility/Zoom"
 import "@/tools/utility/ColorPicker"
 import "@/tools/utility/Move"
 import "@/tools/selection/RectSelect"
+import "@/tools/selection/EllipseSelect"
 import "@/tools/selection/MagicWand"
 
 interface Point {
@@ -45,6 +47,7 @@ export function Canvas() {
   const [preDrawImageData, setPreDrawImageData] = useState<ImageData | null>(null)
   const [selectionPreview, setSelectionPreview] = useState<SelectionRect | null>(null)
   const [onionSkinSettings, setOnionSkinSettings] = useState<OnionSkinSettings>(getOnionSkinManager().getSettings())
+  const lastSpacingPosRef = useRef<Point | null>(null)
 
   // Layer canvas system
   const { getCurrentLayerCtx, getCurrentLayer, composite, saveCurrentLayerData, getManager } = useLayerCanvas()
@@ -79,12 +82,20 @@ export function Canvas() {
     setSecondaryColor,
     history,
     selection,
+    bucketTolerance,
+    overwrite,
+    spacingMode,
+    spacing,
+    filled,
+    shadingMode,
+    shadingAmount,
   } = useEditorStore()
 
   // Selection management
   const {
     hasSelection,
     selectRect,
+    selectEllipse,
     selectMask,
     selectAll: doSelectAll,
     clearSelection,
@@ -216,29 +227,125 @@ export function Canvas() {
 
     ctx.fillStyle = color
 
-    if (size === 1) {
-      if (x >= 0 && x < width && y >= 0 && y < height) {
-        ctx.fillRect(x, y, 1, 1)
+    const drawSinglePixel = (px: number, py: number) => {
+      if (px >= 0 && px < width && py >= 0 && py < height) {
+        if (overwrite) {
+          // Overwrite mode: clear first, then draw
+          ctx.clearRect(px, py, 1, 1)
+        }
+        ctx.fillRect(px, py, 1, 1)
       }
+    }
+
+    if (size === 1) {
+      drawSinglePixel(x, y)
     } else {
       const halfSize = Math.floor(size / 2)
       for (let dx = 0; dx < size; dx++) {
         for (let dy = 0; dy < size; dy++) {
           const px = x - halfSize + dx
           const py = y - halfSize + dy
-          if (px >= 0 && px < width && py >= 0 && py < height) {
-            ctx.fillRect(px, py, 1, 1)
-          }
+          drawSinglePixel(px, py)
         }
       }
     }
-  }, [brushSize, width, height, layers, currentLayerIndex])
+  }, [brushSize, width, height, layers, currentLayerIndex, overwrite])
 
-  // Draw line using Bresenham
+  // Apply shading (lighten/darken) to pixels
+  const shadePixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number = brushSize) => {
+    const layer = layers[currentLayerIndex]
+    if (!layer.visible || layer.locked) return
+
+    const factor = shadingAmount / 100
+
+    const applyShadingToPixel = (px: number, py: number) => {
+      if (px < 0 || px >= width || py < 0 || py >= height) return
+
+      // Get current pixel color
+      const imageData = ctx.getImageData(px, py, 1, 1)
+      const data = imageData.data
+
+      // Skip if pixel is fully transparent
+      if (data[3] === 0) return
+
+      // Get RGB values
+      let r = data[0]
+      let g = data[1]
+      let b = data[2]
+
+      // Apply lighten/darken
+      if (shadingMode === 'lighten') {
+        // Lighten: blend towards white
+        r = Math.min(255, r + (255 - r) * factor)
+        g = Math.min(255, g + (255 - g) * factor)
+        b = Math.min(255, b + (255 - b) * factor)
+      } else {
+        // Darken: blend towards black
+        r = Math.max(0, r * (1 - factor))
+        g = Math.max(0, g * (1 - factor))
+        b = Math.max(0, b * (1 - factor))
+      }
+
+      // Set new color
+      data[0] = Math.round(r)
+      data[1] = Math.round(g)
+      data[2] = Math.round(b)
+
+      ctx.putImageData(imageData, px, py)
+    }
+
+    if (size === 1) {
+      applyShadingToPixel(x, y)
+    } else {
+      const halfSize = Math.floor(size / 2)
+      for (let dx = 0; dx < size; dx++) {
+        for (let dy = 0; dy < size; dy++) {
+          const px = x - halfSize + dx
+          const py = y - halfSize + dy
+          applyShadingToPixel(px, py)
+        }
+      }
+    }
+  }, [brushSize, width, height, layers, currentLayerIndex, shadingMode, shadingAmount])
+
+  // Draw shading line using Bresenham
+  const drawShadingLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, size: number = brushSize) => {
+    const points = bresenhamLine(from.x, from.y, to.x, to.y)
+    points.forEach(p => {
+      shadePixel(ctx, p.x, p.y, size)
+    })
+  }, [shadePixel, brushSize])
+
+  // Check if we should draw at position based on spacing mode
+  const shouldDrawAtPosition = useCallback((pos: Point): boolean => {
+    if (!spacingMode) return true
+
+    const lastPos = lastSpacingPosRef.current
+    if (!lastPos) {
+      lastSpacingPosRef.current = pos
+      return true
+    }
+
+    const dx = Math.abs(pos.x - lastPos.x)
+    const dy = Math.abs(pos.y - lastPos.y)
+
+    if (dx >= spacing.x || dy >= spacing.y) {
+      lastSpacingPosRef.current = pos
+      return true
+    }
+
+    return false
+  }, [spacingMode, spacing])
+
+  // Draw line using Bresenham with spacing support
   const drawLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, color: string, size: number = brushSize) => {
     const points = bresenhamLine(from.x, from.y, to.x, to.y)
-    points.forEach(p => drawPixel(ctx, p.x, p.y, color, size))
-  }, [drawPixel, brushSize])
+    points.forEach(p => {
+      if (shouldDrawAtPosition(p)) {
+        drawPixel(ctx, p.x, p.y, color, size)
+      }
+    })
+  }, [drawPixel, brushSize, shouldDrawAtPosition])
 
   // Flood fill - operates on current layer
   const doFloodFill = useCallback((x: number, y: number, fillColor: string) => {
@@ -254,8 +361,8 @@ export function Canvas() {
     // Get current image data from the layer
     const imageData = ctx.getImageData(0, 0, width, height)
 
-    // Get points to fill using flood fill algorithm
-    const pointsToFill = floodFill(imageData, x, y, 0)
+    // Get points to fill using flood fill algorithm with tolerance from store
+    const pointsToFill = floodFill(imageData, x, y, bucketTolerance)
 
     // Fill the points with the new color
     for (const point of pointsToFill) {
@@ -268,7 +375,7 @@ export function Canvas() {
 
     // Put the modified image data back
     ctx.putImageData(imageData, 0, 0)
-  }, [getCurrentLayerCtx, layers, currentLayerIndex, width, height])
+  }, [getCurrentLayerCtx, layers, currentLayerIndex, width, height, bucketTolerance])
 
   // Pick color from composited canvas (visible result)
   const pickColor = useCallback((x: number, y: number, isPrimary: boolean) => {
@@ -323,14 +430,23 @@ export function Canvas() {
         drawLine(layerCtx, start, end, color, brushSize)
         break
       case 'rectangle':
-        // Draw rectangle outline
-        for (let x = minX; x <= minX + w; x++) {
-          drawPixel(layerCtx, x, minY, color, 1)
-          drawPixel(layerCtx, x, minY + h, color, 1)
-        }
-        for (let y = minY; y <= minY + h; y++) {
-          drawPixel(layerCtx, minX, y, color, 1)
-          drawPixel(layerCtx, minX + w, y, color, 1)
+        if (filled) {
+          // Filled rectangle
+          for (let y = minY; y <= minY + h; y++) {
+            for (let x = minX; x <= minX + w; x++) {
+              drawPixel(layerCtx, x, y, color, 1)
+            }
+          }
+        } else {
+          // Rectangle outline
+          for (let x = minX; x <= minX + w; x++) {
+            drawPixel(layerCtx, x, minY, color, 1)
+            drawPixel(layerCtx, x, minY + h, color, 1)
+          }
+          for (let y = minY; y <= minY + h; y++) {
+            drawPixel(layerCtx, minX, y, color, 1)
+            drawPixel(layerCtx, minX + w, y, color, 1)
+          }
         }
         break
       case 'ellipse':
@@ -339,7 +455,7 @@ export function Canvas() {
         const cy = (start.y + end.y) / 2
         const rx = w / 2
         const ry = h / 2
-        drawEllipse(layerCtx, cx, cy, rx, ry, color)
+        drawEllipse(layerCtx, cx, cy, rx, ry, color, filled)
         break
     }
 
@@ -355,7 +471,7 @@ export function Canvas() {
         }
       }
     }
-  }, [width, height, brushSize, preDrawImageData, drawLine, drawPixel, getCurrentLayerCtx, composite])
+  }, [width, height, brushSize, preDrawImageData, drawLine, drawPixel, drawEllipse, getCurrentLayerCtx, composite, filled])
 
   // Helper to update display canvas with composited layers
   const updateDisplay = useCallback(() => {
@@ -373,7 +489,7 @@ export function Canvas() {
   }, [composite, width, height])
 
   // Draw ellipse using midpoint algorithm
-  const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string) => {
+  const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string, isFilled: boolean = false) => {
     if (rx <= 0 || ry <= 0) return
 
     ctx.fillStyle = color
@@ -383,11 +499,29 @@ export function Canvas() {
       }
     }
 
-    // Simple ellipse drawing
-    for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
-      const x = cx + rx * Math.cos(angle)
-      const y = cy + ry * Math.sin(angle)
-      setPixel(x, y)
+    if (isFilled) {
+      // Filled ellipse - scan through bounding box
+      const floorCx = Math.floor(cx)
+      const floorCy = Math.floor(cy)
+      const floorRx = Math.floor(rx)
+      const floorRy = Math.floor(ry)
+      for (let dy = -floorRy; dy <= floorRy; dy++) {
+        for (let dx = -floorRx; dx <= floorRx; dx++) {
+          // Check if point is inside ellipse
+          const nx = dx / (floorRx || 1)
+          const ny = dy / (floorRy || 1)
+          if (nx * nx + ny * ny <= 1) {
+            setPixel(floorCx + dx, floorCy + dy)
+          }
+        }
+      }
+    } else {
+      // Outline ellipse
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
+        const x = cx + rx * Math.cos(angle)
+        const y = cy + ry * Math.sin(angle)
+        setPixel(x, y)
+      }
     }
   }, [width, height])
 
@@ -412,8 +546,16 @@ export function Canvas() {
 
     switch (currentTool) {
       case "pencil":
-        if (layerCtx) {
+        // Reset spacing position at start of stroke
+        lastSpacingPosRef.current = null
+        if (layerCtx && shouldDrawAtPosition(point)) {
           drawPixel(layerCtx, point.x, point.y, color)
+          updateDisplay()
+        }
+        break
+      case "shading":
+        if (layerCtx) {
+          shadePixel(layerCtx, point.x, point.y)
           updateDisplay()
         }
         break
@@ -457,7 +599,8 @@ export function Canvas() {
         // Move tool - to be implemented with selection
         break
       case "rectSelect":
-        // Start rectangle selection
+      case "ellipseSelect":
+        // Start rectangle/ellipse selection
         setShapeStart(point)
         // Check modifier keys for selection mode
         if (!e.shiftKey && !e.altKey && !e.ctrlKey) {
@@ -484,7 +627,7 @@ export function Canvas() {
 
     // Capture pointer for better tracking
     displayCanvas.setPointerCapture(e.pointerId)
-  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height, getCurrentLayerCtx, getCurrentLayer, updateDisplay, composite, saveCurrentLayerData])
+  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, shadePixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height, getCurrentLayerCtx, getCurrentLayer, updateDisplay, composite, saveCurrentLayerData, shouldDrawAtPosition])
 
   // Handle pointer move
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -500,6 +643,12 @@ export function Canvas() {
       case "pencil":
         if (lastPoint && layerCtx) {
           drawLine(layerCtx, lastPoint, point, color)
+          updateDisplay()
+        }
+        break
+      case "shading":
+        if (lastPoint && layerCtx) {
+          drawShadingLine(layerCtx, lastPoint, point)
           updateDisplay()
         }
         break
@@ -526,6 +675,7 @@ export function Canvas() {
         pickColor(point.x, point.y, isPrimary)
         break
       case "rectSelect":
+      case "ellipseSelect":
         if (shapeStart) {
           // Update selection preview
           const rect: SelectionRect = {
@@ -540,7 +690,7 @@ export function Canvas() {
     }
 
     setLastPoint(point)
-  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, lastPoint, shapeStart, drawLine, drawShapePreview, pan, pickColor, getCurrentLayerCtx, updateDisplay])
+  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, lastPoint, shapeStart, drawLine, drawShadingLine, drawShapePreview, pan, pickColor, getCurrentLayerCtx, updateDisplay])
 
   // Handle pointer up
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -553,7 +703,7 @@ export function Canvas() {
     const point = getCanvasPoint(e)
 
     // Add action to history for drawing tools and save layer data
-    if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse'].includes(currentTool)) {
+    if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'shading'].includes(currentTool)) {
       if (currentLayerCanvas) {
         const afterState = captureCanvasState(currentLayerCanvas.canvas)
         if (afterState) {
@@ -565,8 +715,8 @@ export function Canvas() {
       saveCurrentLayerData()
     }
 
-    // Finalize rectangle selection
-    if (currentTool === 'rectSelect' && shapeStart) {
+    // Finalize rectangle or ellipse selection
+    if ((currentTool === 'rectSelect' || currentTool === 'ellipseSelect') && shapeStart) {
       const rect: SelectionRect = {
         x: Math.min(shapeStart.x, point.x),
         y: Math.min(shapeStart.y, point.y),
@@ -580,7 +730,11 @@ export function Canvas() {
         : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
         : SelectionOperation.REPLACE
 
-      selectRect(rect, operation)
+      if (currentTool === 'ellipseSelect') {
+        selectEllipse(rect, operation)
+      } else {
+        selectRect(rect, operation)
+      }
       setSelectionPreview(null)
     }
 
@@ -591,7 +745,7 @@ export function Canvas() {
 
     // Release pointer capture
     displayCanvas.releasePointerCapture(e.pointerId)
-  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, getCurrentLayer, saveCurrentLayerData])
+  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, selectEllipse, getCurrentLayer, saveCurrentLayerData])
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {

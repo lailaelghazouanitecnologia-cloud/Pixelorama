@@ -17,6 +17,9 @@ export interface DrawToolConfig extends ToolConfig {
   brushSize: number
   brushOpacity: number
   pixelPerfect: boolean
+  overwrite: boolean
+  spacingMode: boolean
+  spacing: { x: number; y: number }
 }
 
 // ============================================================================
@@ -28,9 +31,13 @@ export abstract class BaseDrawTool extends BaseTool {
   protected brushSize: number = DEFAULT_BRUSH_SIZE
   protected brushOpacity: number = DEFAULT_BRUSH_OPACITY
   protected pixelPerfect: boolean = false
+  protected overwrite: boolean = false
+  protected spacingMode: boolean = false
+  protected spacing: { x: number; y: number } = { x: 1, y: 1 }
 
   // Drawing state
   protected isEraser: boolean = false
+  protected lastSpacingPos: Point | null = null
 
   // Undo data
   protected undoImageData: ImageData | null = null
@@ -45,6 +52,9 @@ export abstract class BaseDrawTool extends BaseTool {
       brushSize: this.brushSize,
       brushOpacity: this.brushOpacity,
       pixelPerfect: this.pixelPerfect,
+      overwrite: this.overwrite,
+      spacingMode: this.spacingMode,
+      spacing: { ...this.spacing },
     }
   }
 
@@ -58,7 +68,87 @@ export abstract class BaseDrawTool extends BaseTool {
     if (config.pixelPerfect !== undefined) {
       this.pixelPerfect = config.pixelPerfect
     }
+    if (config.overwrite !== undefined) {
+      this.overwrite = config.overwrite
+    }
+    if (config.spacingMode !== undefined) {
+      this.spacingMode = config.spacingMode
+    }
+    if (config.spacing !== undefined) {
+      this.spacing = { ...config.spacing }
+    }
     super.setConfig(config)
+  }
+
+  // ============================================================================
+  // Overwrite & Spacing Methods
+  // ============================================================================
+
+  /**
+   * Get overwrite mode state.
+   */
+  getOverwrite(): boolean {
+    return this.overwrite
+  }
+
+  /**
+   * Set overwrite mode.
+   */
+  setOverwrite(value: boolean): void {
+    this.overwrite = value
+    this.saveConfig()
+  }
+
+  /**
+   * Get spacing mode state.
+   */
+  getSpacingMode(): boolean {
+    return this.spacingMode
+  }
+
+  /**
+   * Set spacing mode.
+   */
+  setSpacingMode(value: boolean): void {
+    this.spacingMode = value
+    this.saveConfig()
+  }
+
+  /**
+   * Get spacing values.
+   */
+  getSpacing(): { x: number; y: number } {
+    return { ...this.spacing }
+  }
+
+  /**
+   * Set spacing values.
+   */
+  setSpacing(x: number, y: number): void {
+    this.spacing = { x: Math.max(1, x), y: Math.max(1, y) }
+    this.saveConfig()
+  }
+
+  /**
+   * Check if a position should be drawn based on spacing.
+   */
+  protected shouldDrawAtPosition(pos: Point): boolean {
+    if (!this.spacingMode) return true
+
+    if (!this.lastSpacingPos) {
+      this.lastSpacingPos = pos
+      return true
+    }
+
+    const dx = Math.abs(pos.x - this.lastSpacingPos.x)
+    const dy = Math.abs(pos.y - this.lastSpacingPos.y)
+
+    if (dx >= this.spacing.x || dy >= this.spacing.y) {
+      this.lastSpacingPos = pos
+      return true
+    }
+
+    return false
   }
 
   // ============================================================================
@@ -119,8 +209,13 @@ export abstract class BaseDrawTool extends BaseTool {
     // Save undo data before starting
     this.prepareUndo(ctx)
 
+    // Reset spacing tracking
+    this.lastSpacingPos = null
+
     // Draw initial point
-    this.drawBrush(pos, ctx)
+    if (this.shouldDrawAtPosition(pos)) {
+      this.drawBrush(pos, ctx)
+    }
   }
 
   protected override onDrawMove(
@@ -203,10 +298,22 @@ export abstract class BaseDrawTool extends BaseTool {
     if (this.isEraser) {
       context.clearRect(x, y, 1, 1)
     } else {
-      context.fillStyle = ctx.color
-      context.globalAlpha = this.brushOpacity / 100
-      context.fillRect(x, y, 1, 1)
-      context.globalAlpha = 1
+      const alpha = this.brushOpacity / 100
+
+      if (this.overwrite) {
+        // Overwrite mode: completely replace the pixel
+        context.clearRect(x, y, 1, 1)
+        context.fillStyle = ctx.color
+        context.globalAlpha = alpha
+        context.fillRect(x, y, 1, 1)
+        context.globalAlpha = 1
+      } else {
+        // Normal blend mode
+        context.fillStyle = ctx.color
+        context.globalAlpha = alpha
+        context.fillRect(x, y, 1, 1)
+        context.globalAlpha = 1
+      }
     }
   }
 
@@ -217,7 +324,9 @@ export abstract class BaseDrawTool extends BaseTool {
     const points = bresenhamLine(from.x, from.y, to.x, to.y)
 
     for (const point of points) {
-      this.drawBrush(point, ctx)
+      if (this.shouldDrawAtPosition(point)) {
+        this.drawBrush(point, ctx)
+      }
     }
   }
 

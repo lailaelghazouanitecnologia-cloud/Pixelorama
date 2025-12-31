@@ -10,9 +10,11 @@ import type { ToolCategory } from '../core/types'
 
 // Tool type - matches our registry names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse'  // Design tools
-  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand'              // Selection tools
-  | 'colorPicker' | 'move' | 'pan' | 'zoom'                              // Utility tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading'  // Design tools
+  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand'                          // Selection tools
+  | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
+
+export type ShadingMode = 'lighten' | 'darken'
 
 export interface Layer {
   id: string
@@ -59,6 +61,13 @@ export interface EditorState {
   brushSize: number
   brushOpacity: number
   pixelPerfect: boolean
+  overwrite: boolean
+  spacingMode: boolean
+  spacing: { x: number; y: number }
+  filled: boolean
+  bucketTolerance: number
+  shadingMode: ShadingMode
+  shadingAmount: number
 
   // Colors
   primaryColor: string
@@ -103,6 +112,13 @@ export interface EditorState {
   setBrushSize: (size: number) => void
   setBrushOpacity: (opacity: number) => void
   setPixelPerfect: (enabled: boolean) => void
+  setOverwrite: (enabled: boolean) => void
+  setSpacingMode: (enabled: boolean) => void
+  setSpacing: (x: number, y: number) => void
+  setFilled: (filled: boolean) => void
+  setBucketTolerance: (tolerance: number) => void
+  setShadingMode: (mode: ShadingMode) => void
+  setShadingAmount: (amount: number) => void
 
   // Colors
   setPrimaryColor: (color: string) => void
@@ -225,6 +241,13 @@ export const useEditorStore = create<EditorState>()(
     brushSize: 1,
     brushOpacity: 100,
     pixelPerfect: false,
+    overwrite: false,
+    spacingMode: false,
+    spacing: { x: 1, y: 1 },
+    filled: false,
+    bucketTolerance: 0,
+    shadingMode: 'lighten' as ShadingMode,
+    shadingAmount: 10,
 
     // Colors
     primaryColor: '#ffffff',
@@ -309,6 +332,13 @@ export const useEditorStore = create<EditorState>()(
     setBrushSize: (size) => set({ brushSize: Math.max(1, Math.min(100, size)) }),
     setBrushOpacity: (opacity) => set({ brushOpacity: Math.max(1, Math.min(100, opacity)) }),
     setPixelPerfect: (enabled) => set({ pixelPerfect: enabled }),
+    setOverwrite: (enabled) => set({ overwrite: enabled }),
+    setSpacingMode: (enabled) => set({ spacingMode: enabled }),
+    setSpacing: (x, y) => set({ spacing: { x: Math.max(1, x), y: Math.max(1, y) } }),
+    setFilled: (filled) => set({ filled }),
+    setBucketTolerance: (tolerance) => set({ bucketTolerance: Math.max(0, Math.min(255, tolerance)) }),
+    setShadingMode: (mode) => set({ shadingMode: mode }),
+    setShadingAmount: (amount) => set({ shadingAmount: Math.max(0, Math.min(100, amount)) }),
 
     // Colors
     setPrimaryColor: (color) => set({ primaryColor: color }),

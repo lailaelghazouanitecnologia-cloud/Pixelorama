@@ -4,7 +4,7 @@
  */
 
 import { useEditorStore } from "@/store/editor-store"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2 } from "lucide-react"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 
@@ -16,6 +16,20 @@ export function ToolOptions() {
     setBrushOpacity,
     pixelPerfect,
     setPixelPerfect,
+    overwrite,
+    setOverwrite,
+    spacingMode,
+    setSpacingMode,
+    spacing,
+    setSpacing,
+    filled,
+    setFilled,
+    bucketTolerance,
+    setBucketTolerance,
+    shadingMode,
+    setShadingMode,
+    shadingAmount,
+    setShadingAmount,
     showGrid,
     toggleGrid,
     snapToGrid,
@@ -31,9 +45,12 @@ export function ToolOptions() {
   const handleRedo = () => history.redo()
 
   // Tool-specific options based on current tool
-  const showBrushOptions = ['pencil', 'eraser', 'line'].includes(currentTool)
+  const showBrushOptions = ['pencil', 'eraser', 'line', 'shading'].includes(currentTool)
+  const showPencilOptions = currentTool === 'pencil'
   const showShapeOptions = ['rectangle', 'ellipse'].includes(currentTool)
-  const showSelectionOptions = ['rectSelect', 'magicWand', 'lasso'].includes(currentTool)
+  const showBucketOptions = currentTool === 'bucket'
+  const showShadingOptions = currentTool === 'shading'
+  const showSelectionOptions = ['rectSelect', 'ellipseSelect', 'magicWand', 'lasso'].includes(currentTool)
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -106,18 +123,124 @@ export function ToolOptions() {
           </>
         )}
 
+        {/* Pencil-specific: Overwrite & Spacing */}
+        {showPencilOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${overwrite ? 'active' : ''}`}
+                  onClick={() => setOverwrite(!overwrite)}
+                >
+                  <Replace className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Overwrite Mode (replace pixels instead of blend)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${spacingMode ? 'active' : ''}`}
+                  onClick={() => setSpacingMode(!spacingMode)}
+                >
+                  <Space className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Spacing Mode</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {spacingMode && (
+              <div className="flex items-center gap-1">
+                <span className="text-pix-xs text-pix-text-muted">X:</span>
+                <input
+                  type="number"
+                  className="input w-10 text-center text-pix-xs py-0"
+                  value={spacing.x}
+                  onChange={(e) => setSpacing(parseInt(e.target.value) || 1, spacing.y)}
+                  min={1}
+                  max={64}
+                />
+                <span className="text-pix-xs text-pix-text-muted">Y:</span>
+                <input
+                  type="number"
+                  className="input w-10 text-center text-pix-xs py-0"
+                  value={spacing.y}
+                  onChange={(e) => setSpacing(spacing.x, parseInt(e.target.value) || 1)}
+                  min={1}
+                  max={64}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Bucket Options */}
+        {showBucketOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
+            <input
+              type="range"
+              className="slider w-20"
+              value={bucketTolerance}
+              onChange={(e) => setBucketTolerance(parseInt(e.target.value))}
+              min={0}
+              max={255}
+            />
+            <input
+              type="number"
+              className="input w-12 text-center text-pix-xs py-0"
+              value={bucketTolerance}
+              onChange={(e) => setBucketTolerance(parseInt(e.target.value) || 0)}
+              min={0}
+              max={255}
+            />
+          </div>
+        )}
+
+        {/* Shading Options */}
+        {showShadingOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Mode:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={shadingMode}
+              onChange={(e) => setShadingMode(e.target.value as 'lighten' | 'darken')}
+            >
+              <option value="lighten">Lighten</option>
+              <option value="darken">Darken</option>
+            </select>
+            <div className="separator-v h-4" />
+            <span className="text-pix-xs text-pix-text-muted">Amount:</span>
+            <input
+              type="range"
+              className="slider w-20"
+              value={shadingAmount}
+              onChange={(e) => setShadingAmount(parseInt(e.target.value))}
+              min={1}
+              max={100}
+            />
+            <span className="text-pix-xs w-8 text-right">{shadingAmount}%</span>
+          </div>
+        )}
+
         {/* Shape Options */}
         {showShapeOptions && (
           <div className="flex items-center gap-2">
             <span className="text-pix-xs text-pix-text-muted">Shape:</span>
             <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
-              <input type="checkbox" className="w-3 h-3" />
+              <input
+                type="checkbox"
+                className="w-3 h-3"
+                checked={filled}
+                onChange={(e) => setFilled(e.target.checked)}
+              />
               <span>Filled</span>
-            </label>
-            <div className="separator-v h-4 mx-1" />
-            <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
-              <input type="checkbox" className="w-3 h-3" />
-              <span>Anti-alias</span>
             </label>
           </div>
         )}

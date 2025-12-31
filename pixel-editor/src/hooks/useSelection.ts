@@ -89,6 +89,30 @@ export function useSelection({ canvas, overlayCanvas }: UseSelectionOptions) {
     selectionManagerRef.current?.selectRect(rect, operation)
   }, [])
 
+  const selectEllipse = useCallback((rect: SelectionRect, operation: SelectionOperation = SelectionOperation.REPLACE) => {
+    // Create ellipse mask from bounding rect
+    const mask = new Uint8Array(width * height)
+    const cx = rect.x + rect.width / 2
+    const cy = rect.y + rect.height / 2
+    const rx = rect.width / 2
+    const ry = rect.height / 2
+
+    if (rx <= 0 || ry <= 0) return
+
+    for (let py = 0; py < height; py++) {
+      for (let px = 0; px < width; px++) {
+        // Check if point is inside ellipse
+        const nx = (px - cx) / rx
+        const ny = (py - cy) / ry
+        if (nx * nx + ny * ny <= 1) {
+          mask[py * width + px] = 255
+        }
+      }
+    }
+
+    selectionManagerRef.current?.selectMask(mask, operation)
+  }, [width, height])
+
   const selectMask = useCallback((mask: Uint8Array, operation: SelectionOperation = SelectionOperation.REPLACE) => {
     selectionManagerRef.current?.selectMask(mask, operation)
   }, [])
@@ -125,6 +149,7 @@ export function useSelection({ canvas, overlayCanvas }: UseSelectionOptions) {
   return {
     hasSelection,
     selectRect,
+    selectEllipse,
     selectMask,
     selectAll,
     clearSelection,
