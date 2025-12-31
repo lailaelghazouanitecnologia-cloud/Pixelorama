@@ -1,8 +1,18 @@
-import { create } from 'zustand'
+/**
+ * Editor Store - Central state management
+ * Based on Pixelorama's Global autoload pattern
+ */
 
-export type Tool =
-  | 'pencil' | 'eraser' | 'bucket' | 'picker'
-  | 'line' | 'rect' | 'ellipse' | 'select' | 'move' | 'zoom'
+import { create } from 'zustand'
+import { subscribeWithSelector } from 'zustand/middleware'
+import { History, getHistory } from '../core/history'
+import type { ToolCategory } from '../core/types'
+
+// Tool type - matches our registry names
+export type ToolName =
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse'  // Design tools
+  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand'              // Selection tools
+  | 'colorPicker' | 'move' | 'pan' | 'zoom'                              // Utility tools
 
 export interface Layer {
   id: string
@@ -10,8 +20,11 @@ export interface Layer {
   visible: boolean
   locked: boolean
   opacity: number
+  blendMode: BlendMode
   data: ImageData | null
 }
+
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten'
 
 export interface Frame {
   id: string
@@ -19,7 +32,20 @@ export interface Frame {
   duration: number
 }
 
+export interface Selection {
+  active: boolean
+  x: number
+  y: number
+  width: number
+  height: number
+  mask: ImageData | null
+}
+
 export interface EditorState {
+  // Project info
+  projectName: string
+  modified: boolean
+
   // Canvas
   width: number
   height: number
@@ -28,9 +54,11 @@ export interface EditorState {
   panY: number
 
   // Tools
-  currentTool: Tool
+  currentTool: ToolName
+  previousTool: ToolName | null
   brushSize: number
   brushOpacity: number
+  pixelPerfect: boolean
 
   // Colors
   primaryColor: string
@@ -47,39 +75,101 @@ export interface EditorState {
   fps: number
   isPlaying: boolean
 
+  // Selection
+  selection: Selection
+
   // History
+  history: History
   canUndo: boolean
   canRedo: boolean
 
   // UI
   showGrid: boolean
   showOnionSkin: boolean
+  showRulers: boolean
+  showGuides: boolean
+  snapToGrid: boolean
+  gridSize: number
 
   // Actions
-  setTool: (tool: Tool) => void
+  // Project
+  newProject: (width: number, height: number) => void
+  setProjectName: (name: string) => void
+  setModified: (modified: boolean) => void
+
+  // Tools
+  setTool: (tool: ToolName) => void
+  setPreviousTool: () => void
   setBrushSize: (size: number) => void
+  setBrushOpacity: (opacity: number) => void
+  setPixelPerfect: (enabled: boolean) => void
+
+  // Colors
   setPrimaryColor: (color: string) => void
   setSecondaryColor: (color: string) => void
   swapColors: () => void
+  addToPalette: (color: string) => void
+  removeFromPalette: (index: number) => void
+  setPalette: (colors: string[]) => void
+
+  // View
   setZoom: (zoom: number) => void
+  zoomIn: () => void
+  zoomOut: () => void
+  resetZoom: () => void
+  fitToScreen: (viewportWidth: number, viewportHeight: number) => void
+  setPan: (x: number, y: number) => void
+  pan: (deltaX: number, deltaY: number) => void
+  resetPan: () => void
+
+  // Layers
   setCurrentLayer: (index: number) => void
-  addLayer: () => void
+  addLayer: (name?: string) => void
+  duplicateLayer: (index: number) => void
   deleteLayer: (index: number) => void
   toggleLayerVisibility: (index: number) => void
   toggleLayerLock: (index: number) => void
   setLayerOpacity: (index: number, opacity: number) => void
+  setLayerBlendMode: (index: number, mode: BlendMode) => void
   renameLayer: (index: number, name: string) => void
   moveLayer: (from: number, to: number) => void
+  mergeLayerDown: (index: number) => void
+  flattenLayers: () => void
+  setLayerData: (index: number, data: ImageData) => void
+
+  // Frames
   addFrame: () => void
+  duplicateFrame: (index: number) => void
   deleteFrame: (index: number) => void
   setCurrentFrame: (index: number) => void
   setFps: (fps: number) => void
+  setFrameDuration: (index: number, duration: number) => void
   togglePlay: () => void
+  nextFrame: () => void
+  prevFrame: () => void
+
+  // Selection
+  setSelection: (selection: Partial<Selection>) => void
+  clearSelection: () => void
+  selectAll: () => void
+  invertSelection: () => void
+
+  // History
+  undo: () => void
+  redo: () => void
+  updateHistoryState: () => void
+
+  // UI toggles
   toggleGrid: () => void
   toggleOnionSkin: () => void
+  toggleRulers: () => void
+  toggleGuides: () => void
+  toggleSnapToGrid: () => void
+  setGridSize: (size: number) => void
   setCanvasSize: (width: number, height: number) => void
 }
 
+// Pixelorama default palette (PICO-8 extended)
 const defaultPalette = [
   '#000000', '#1d2b53', '#7e2553', '#008751',
   '#ab5236', '#5f574f', '#c2c3c7', '#fff1e8',
@@ -97,116 +187,416 @@ const createDefaultLayer = (id: string, name: string): Layer => ({
   visible: true,
   locked: false,
   opacity: 100,
+  blendMode: 'normal',
   data: null,
 })
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  // Canvas
-  width: 64,
-  height: 64,
-  zoom: 8,
-  panX: 0,
-  panY: 0,
+const createDefaultSelection = (): Selection => ({
+  active: false,
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0,
+  mask: null,
+})
 
-  // Tools
-  currentTool: 'pencil',
-  brushSize: 1,
-  brushOpacity: 100,
+// Zoom levels matching Pixelorama
+const ZOOM_LEVELS = [0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64]
+const DEFAULT_ZOOM = 8
+const MIN_ZOOM = 0.125
+const MAX_ZOOM = 64
 
-  // Colors
-  primaryColor: '#ffffff',
-  secondaryColor: '#000000',
-  palette: defaultPalette,
+export const useEditorStore = create<EditorState>()(
+  subscribeWithSelector((set, get) => ({
+    // Project
+    projectName: 'Untitled',
+    modified: false,
 
-  // Layers
-  layers: [createDefaultLayer('layer-1', 'Layer 1')],
-  currentLayerIndex: 0,
+    // Canvas
+    width: 64,
+    height: 64,
+    zoom: DEFAULT_ZOOM,
+    panX: 0,
+    panY: 0,
 
-  // Frames
-  frames: [],
-  currentFrameIndex: 0,
-  fps: 12,
-  isPlaying: false,
+    // Tools
+    currentTool: 'pencil',
+    previousTool: null,
+    brushSize: 1,
+    brushOpacity: 100,
+    pixelPerfect: false,
 
-  // History
-  canUndo: false,
-  canRedo: false,
+    // Colors
+    primaryColor: '#ffffff',
+    secondaryColor: '#000000',
+    palette: defaultPalette,
 
-  // UI
-  showGrid: true,
-  showOnionSkin: false,
+    // Layers
+    layers: [createDefaultLayer('layer-1', 'Layer 1')],
+    currentLayerIndex: 0,
 
-  // Actions
-  setTool: (tool) => set({ currentTool: tool }),
-  setBrushSize: (size) => set({ brushSize: size }),
-  setPrimaryColor: (color) => set({ primaryColor: color }),
-  setSecondaryColor: (color) => set({ secondaryColor: color }),
-  swapColors: () => set((state) => ({
-    primaryColor: state.secondaryColor,
-    secondaryColor: state.primaryColor,
-  })),
-  setZoom: (zoom) => set({ zoom: Math.max(1, Math.min(32, zoom)) }),
+    // Frames
+    frames: [],
+    currentFrameIndex: 0,
+    fps: 12,
+    isPlaying: false,
 
-  setCurrentLayer: (index) => set({ currentLayerIndex: index }),
-  addLayer: () => set((state) => {
-    const id = `layer-${Date.now()}`
-    const name = `Layer ${state.layers.length + 1}`
-    return {
-      layers: [...state.layers, createDefaultLayer(id, name)],
-      currentLayerIndex: state.layers.length,
-    }
-  }),
-  deleteLayer: (index) => set((state) => {
-    if (state.layers.length <= 1) return state
-    const newLayers = state.layers.filter((_, i) => i !== index)
-    return {
-      layers: newLayers,
-      currentLayerIndex: Math.min(state.currentLayerIndex, newLayers.length - 1),
-    }
-  }),
-  toggleLayerVisibility: (index) => set((state) => ({
-    layers: state.layers.map((l, i) =>
-      i === index ? { ...l, visible: !l.visible } : l
-    ),
-  })),
-  toggleLayerLock: (index) => set((state) => ({
-    layers: state.layers.map((l, i) =>
-      i === index ? { ...l, locked: !l.locked } : l
-    ),
-  })),
-  setLayerOpacity: (index, opacity) => set((state) => ({
-    layers: state.layers.map((l, i) =>
-      i === index ? { ...l, opacity } : l
-    ),
-  })),
-  renameLayer: (index, name) => set((state) => ({
-    layers: state.layers.map((l, i) =>
-      i === index ? { ...l, name } : l
-    ),
-  })),
-  moveLayer: (from, to) => set((state) => {
-    const newLayers = [...state.layers]
-    const [removed] = newLayers.splice(from, 1)
-    newLayers.splice(to, 0, removed)
-    return { layers: newLayers }
-  }),
+    // Selection
+    selection: createDefaultSelection(),
 
-  addFrame: () => set((state) => ({
-    frames: [...state.frames, {
-      id: `frame-${Date.now()}`,
-      layers: state.layers.map(l => ({ ...l })),
-      duration: 1000 / state.fps,
-    }],
-  })),
-  deleteFrame: (index) => set((state) => ({
-    frames: state.frames.filter((_, i) => i !== index),
-    currentFrameIndex: Math.min(state.currentFrameIndex, state.frames.length - 2),
-  })),
-  setCurrentFrame: (index) => set({ currentFrameIndex: index }),
-  setFps: (fps) => set({ fps }),
-  togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
+    // History
+    history: getHistory(),
+    canUndo: false,
+    canRedo: false,
 
-  toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),
-  toggleOnionSkin: () => set((state) => ({ showOnionSkin: !state.showOnionSkin })),
-  setCanvasSize: (width, height) => set({ width, height }),
-}))
+    // UI
+    showGrid: true,
+    showOnionSkin: false,
+    showRulers: true,
+    showGuides: true,
+    snapToGrid: false,
+    gridSize: 8,
+
+    // === Actions ===
+
+    // Project
+    newProject: (width, height) => set({
+      width,
+      height,
+      layers: [createDefaultLayer('layer-1', 'Layer 1')],
+      currentLayerIndex: 0,
+      frames: [],
+      currentFrameIndex: 0,
+      selection: createDefaultSelection(),
+      projectName: 'Untitled',
+      modified: false,
+      panX: 0,
+      panY: 0,
+    }),
+
+    setProjectName: (name) => set({ projectName: name }),
+    setModified: (modified) => set({ modified }),
+
+    // Tools
+    setTool: (tool) => set((state) => ({
+      currentTool: tool,
+      previousTool: state.currentTool,
+    })),
+
+    setPreviousTool: () => set((state) => ({
+      currentTool: state.previousTool || 'pencil',
+      previousTool: state.currentTool,
+    })),
+
+    setBrushSize: (size) => set({ brushSize: Math.max(1, Math.min(100, size)) }),
+    setBrushOpacity: (opacity) => set({ brushOpacity: Math.max(1, Math.min(100, opacity)) }),
+    setPixelPerfect: (enabled) => set({ pixelPerfect: enabled }),
+
+    // Colors
+    setPrimaryColor: (color) => set({ primaryColor: color }),
+    setSecondaryColor: (color) => set({ secondaryColor: color }),
+    swapColors: () => set((state) => ({
+      primaryColor: state.secondaryColor,
+      secondaryColor: state.primaryColor,
+    })),
+    addToPalette: (color) => set((state) => {
+      if (state.palette.includes(color)) return state
+      return { palette: [...state.palette, color] }
+    }),
+    removeFromPalette: (index) => set((state) => ({
+      palette: state.palette.filter((_, i) => i !== index),
+    })),
+    setPalette: (colors) => set({ palette: colors }),
+
+    // View
+    setZoom: (zoom) => set({
+      zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
+    }),
+
+    zoomIn: () => set((state) => {
+      const currentIndex = ZOOM_LEVELS.findIndex(z => z >= state.zoom)
+      const nextIndex = Math.min(currentIndex + 1, ZOOM_LEVELS.length - 1)
+      return { zoom: ZOOM_LEVELS[nextIndex] }
+    }),
+
+    zoomOut: () => set((state) => {
+      const currentIndex = ZOOM_LEVELS.findIndex(z => z >= state.zoom)
+      const prevIndex = Math.max(currentIndex - 1, 0)
+      return { zoom: ZOOM_LEVELS[prevIndex] }
+    }),
+
+    resetZoom: () => set({ zoom: DEFAULT_ZOOM }),
+
+    fitToScreen: (viewportWidth, viewportHeight) => set((state) => {
+      const scaleX = (viewportWidth - 40) / state.width
+      const scaleY = (viewportHeight - 40) / state.height
+      const zoom = Math.min(scaleX, scaleY)
+      // Find closest zoom level
+      const closestZoom = ZOOM_LEVELS.reduce((prev, curr) =>
+        Math.abs(curr - zoom) < Math.abs(prev - zoom) ? curr : prev
+      )
+      return { zoom: closestZoom, panX: 0, panY: 0 }
+    }),
+
+    setPan: (x, y) => set({ panX: x, panY: y }),
+    pan: (deltaX, deltaY) => set((state) => ({
+      panX: state.panX + deltaX,
+      panY: state.panY + deltaY,
+    })),
+    resetPan: () => set({ panX: 0, panY: 0 }),
+
+    // Layers
+    setCurrentLayer: (index) => set({ currentLayerIndex: index }),
+
+    addLayer: (name) => set((state) => {
+      const id = `layer-${Date.now()}`
+      const layerName = name || `Layer ${state.layers.length + 1}`
+      const newLayer = createDefaultLayer(id, layerName)
+      return {
+        layers: [...state.layers, newLayer],
+        currentLayerIndex: state.layers.length,
+        modified: true,
+      }
+    }),
+
+    duplicateLayer: (index) => set((state) => {
+      const original = state.layers[index]
+      if (!original) return state
+      const id = `layer-${Date.now()}`
+      const newLayer: Layer = {
+        ...original,
+        id,
+        name: `${original.name} copy`,
+        data: original.data ? new ImageData(
+          new Uint8ClampedArray(original.data.data),
+          original.data.width,
+          original.data.height
+        ) : null,
+      }
+      const newLayers = [...state.layers]
+      newLayers.splice(index + 1, 0, newLayer)
+      return {
+        layers: newLayers,
+        currentLayerIndex: index + 1,
+        modified: true,
+      }
+    }),
+
+    deleteLayer: (index) => set((state) => {
+      if (state.layers.length <= 1) return state
+      const newLayers = state.layers.filter((_, i) => i !== index)
+      return {
+        layers: newLayers,
+        currentLayerIndex: Math.min(state.currentLayerIndex, newLayers.length - 1),
+        modified: true,
+      }
+    }),
+
+    toggleLayerVisibility: (index) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, visible: !l.visible } : l
+      ),
+    })),
+
+    toggleLayerLock: (index) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, locked: !l.locked } : l
+      ),
+    })),
+
+    setLayerOpacity: (index, opacity) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, opacity: Math.max(0, Math.min(100, opacity)) } : l
+      ),
+      modified: true,
+    })),
+
+    setLayerBlendMode: (index, mode) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, blendMode: mode } : l
+      ),
+      modified: true,
+    })),
+
+    renameLayer: (index, name) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, name } : l
+      ),
+    })),
+
+    moveLayer: (from, to) => set((state) => {
+      const newLayers = [...state.layers]
+      const [removed] = newLayers.splice(from, 1)
+      newLayers.splice(to, 0, removed)
+      return {
+        layers: newLayers,
+        currentLayerIndex: to,
+        modified: true,
+      }
+    }),
+
+    mergeLayerDown: (index) => set((state) => {
+      if (index <= 0) return state
+      // Merge logic would go here - requires canvas operations
+      return { modified: true }
+    }),
+
+    flattenLayers: () => set((state) => {
+      // Flatten logic would go here - requires canvas operations
+      return { modified: true }
+    }),
+
+    setLayerData: (index, data) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index ? { ...l, data } : l
+      ),
+      modified: true,
+    })),
+
+    // Frames
+    addFrame: () => set((state) => ({
+      frames: [...state.frames, {
+        id: `frame-${Date.now()}`,
+        layers: state.layers.map(l => ({
+          ...l,
+          data: l.data ? new ImageData(
+            new Uint8ClampedArray(l.data.data),
+            l.data.width,
+            l.data.height
+          ) : null,
+        })),
+        duration: 1000 / state.fps,
+      }],
+      currentFrameIndex: state.frames.length,
+      modified: true,
+    })),
+
+    duplicateFrame: (index) => set((state) => {
+      const original = state.frames[index]
+      if (!original) return state
+      const newFrame = {
+        ...original,
+        id: `frame-${Date.now()}`,
+        layers: original.layers.map(l => ({
+          ...l,
+          data: l.data ? new ImageData(
+            new Uint8ClampedArray(l.data.data),
+            l.data.width,
+            l.data.height
+          ) : null,
+        })),
+      }
+      const newFrames = [...state.frames]
+      newFrames.splice(index + 1, 0, newFrame)
+      return {
+        frames: newFrames,
+        currentFrameIndex: index + 1,
+        modified: true,
+      }
+    }),
+
+    deleteFrame: (index) => set((state) => {
+      if (state.frames.length <= 1) return state
+      return {
+        frames: state.frames.filter((_, i) => i !== index),
+        currentFrameIndex: Math.min(state.currentFrameIndex, state.frames.length - 2),
+        modified: true,
+      }
+    }),
+
+    setCurrentFrame: (index) => set({ currentFrameIndex: index }),
+    setFps: (fps) => set({ fps: Math.max(1, Math.min(60, fps)) }),
+    setFrameDuration: (index, duration) => set((state) => ({
+      frames: state.frames.map((f, i) =>
+        i === index ? { ...f, duration } : f
+      ),
+    })),
+    togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
+
+    nextFrame: () => set((state) => ({
+      currentFrameIndex: (state.currentFrameIndex + 1) % Math.max(1, state.frames.length),
+    })),
+
+    prevFrame: () => set((state) => ({
+      currentFrameIndex: state.currentFrameIndex > 0
+        ? state.currentFrameIndex - 1
+        : Math.max(0, state.frames.length - 1),
+    })),
+
+    // Selection
+    setSelection: (selection) => set((state) => ({
+      selection: { ...state.selection, ...selection },
+    })),
+
+    clearSelection: () => set({ selection: createDefaultSelection() }),
+
+    selectAll: () => set((state) => ({
+      selection: {
+        active: true,
+        x: 0,
+        y: 0,
+        width: state.width,
+        height: state.height,
+        mask: null,
+      },
+    })),
+
+    invertSelection: () => set((state) => {
+      // Invert selection logic would go here
+      return state
+    }),
+
+    // History
+    undo: () => {
+      const { history } = get()
+      history.undo()
+      get().updateHistoryState()
+    },
+
+    redo: () => {
+      const { history } = get()
+      history.redo()
+      get().updateHistoryState()
+    },
+
+    updateHistoryState: () => {
+      const { history } = get()
+      set({
+        canUndo: history.canUndo(),
+        canRedo: history.canRedo(),
+      })
+    },
+
+    // UI
+    toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),
+    toggleOnionSkin: () => set((state) => ({ showOnionSkin: !state.showOnionSkin })),
+    toggleRulers: () => set((state) => ({ showRulers: !state.showRulers })),
+    toggleGuides: () => set((state) => ({ showGuides: !state.showGuides })),
+    toggleSnapToGrid: () => set((state) => ({ snapToGrid: !state.snapToGrid })),
+    setGridSize: (size) => set({ gridSize: Math.max(1, Math.min(64, size)) }),
+    setCanvasSize: (width, height) => set({ width, height, modified: true }),
+  }))
+)
+
+// Subscribe to history changes
+getHistory().subscribe((state) => {
+  useEditorStore.setState({
+    canUndo: state.canUndo,
+    canRedo: state.canRedo,
+  })
+})
+
+// Keyboard shortcuts helper
+export const SHORTCUTS: Record<string, ToolName | (() => void)> = {
+  'b': 'pencil',
+  'e': 'eraser',
+  'g': 'bucket',
+  'l': 'line',
+  'r': 'rectangle',
+  'o': 'ellipse',
+  'm': 'rectSelect',
+  'i': 'colorPicker',
+  'v': 'move',
+  'h': 'pan',
+  'z': 'zoom',
+}
