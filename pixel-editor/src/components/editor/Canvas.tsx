@@ -251,8 +251,24 @@ export function Canvas() {
     const rgb = hexToRgb(fillColor)
     if (!rgb) return
 
-    floodFill(ctx, x, y, { r: rgb.r, g: rgb.g, b: rgb.b, a: 255 })
-  }, [getCurrentLayerCtx, layers, currentLayerIndex])
+    // Get current image data from the layer
+    const imageData = ctx.getImageData(0, 0, width, height)
+
+    // Get points to fill using flood fill algorithm
+    const pointsToFill = floodFill(imageData, x, y, 0)
+
+    // Fill the points with the new color
+    for (const point of pointsToFill) {
+      const index = (point.y * width + point.x) * 4
+      imageData.data[index] = rgb.r
+      imageData.data[index + 1] = rgb.g
+      imageData.data[index + 2] = rgb.b
+      imageData.data[index + 3] = 255
+    }
+
+    // Put the modified image data back
+    ctx.putImageData(imageData, 0, 0)
+  }, [getCurrentLayerCtx, layers, currentLayerIndex, width, height])
 
   // Pick color from composited canvas (visible result)
   const pickColor = useCallback((x: number, y: number, isPrimary: boolean) => {

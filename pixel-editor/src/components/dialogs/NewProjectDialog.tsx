@@ -41,7 +41,7 @@ export function NewProjectDialog({ open, onOpenChange }: NewProjectDialogProps) 
   const history = getHistory()
 
   const handleCreate = () => {
-    newProject(width, height)
+    newProject(width, height, fillColor)
     setProjectName("Untitled")
     history.clear()
     onOpenChange(false)

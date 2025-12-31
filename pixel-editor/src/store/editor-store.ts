@@ -93,7 +93,7 @@ export interface EditorState {
 
   // Actions
   // Project
-  newProject: (width: number, height: number) => void
+  newProject: (width: number, height: number, fillColor?: string) => void
   setProjectName: (name: string) => void
   setModified: (modified: boolean) => void
 
@@ -260,19 +260,37 @@ export const useEditorStore = create<EditorState>()(
     // === Actions ===
 
     // Project
-    newProject: (width, height) => set({
-      width,
-      height,
-      layers: [createDefaultLayer('layer-1', 'Layer 1')],
-      currentLayerIndex: 0,
-      frames: [],
-      currentFrameIndex: 0,
-      selection: createDefaultSelection(),
-      projectName: 'Untitled',
-      modified: false,
-      panX: 0,
-      panY: 0,
-    }),
+    newProject: (width, height, fillColor) => {
+      // Create initial layer with fill color if provided
+      const layer = createDefaultLayer('layer-1', 'Layer 1')
+
+      // Create ImageData with fill color if not transparent
+      if (fillColor && fillColor !== '#00000000' && fillColor !== 'transparent') {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = fillColor
+          ctx.fillRect(0, 0, width, height)
+          layer.data = ctx.getImageData(0, 0, width, height)
+        }
+      }
+
+      return set({
+        width,
+        height,
+        layers: [layer],
+        currentLayerIndex: 0,
+        frames: [],
+        currentFrameIndex: 0,
+        selection: createDefaultSelection(),
+        projectName: 'Untitled',
+        modified: false,
+        panX: 0,
+        panY: 0,
+      })
+    },
 
     setProjectName: (name) => set({ projectName: name }),
     setModified: (modified) => set({ modified }),

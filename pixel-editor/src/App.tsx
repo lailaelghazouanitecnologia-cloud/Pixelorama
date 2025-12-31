@@ -6,11 +6,13 @@ import { ColorPanel } from "@/components/editor/ColorPanel"
 import { LayersPanel } from "@/components/editor/LayersPanel"
 import { Timeline } from "@/components/editor/Timeline"
 import { StatusBar } from "@/components/editor/StatusBar"
+import { StartupDialog } from "@/components/dialogs/StartupDialog"
 import { useEditorStore } from "@/store/editor-store"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 function App() {
   const { setTool, setZoom, setPrimaryColor, setSecondaryColor } = useEditorStore()
+  const [showStartup, setShowStartup] = useState(true)
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -72,6 +74,9 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Startup Dialog */}
+      <StartupDialog open={showStartup} onOpenChange={setShowStartup} />
+
       {/* Top Menu Bar */}
       <TopMenu />
 

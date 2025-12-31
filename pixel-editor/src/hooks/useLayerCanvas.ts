@@ -12,6 +12,7 @@ import {
 
 export function useLayerCanvas() {
   const managerRef = useRef<LayerCanvasManager | null>(null)
+  const prevDimensionsRef = useRef<{ width: number; height: number } | null>(null)
 
   const {
     width,
@@ -21,11 +22,17 @@ export function useLayerCanvas() {
     setLayerData,
   } = useEditorStore()
 
-  // Initialize or get manager
+  // Initialize or reset manager when dimensions change
   useEffect(() => {
-    if (!managerRef.current) {
-      managerRef.current = getLayerCanvasManager(width, height)
+    const prevDims = prevDimensionsRef.current
+    const dimensionsChanged = prevDims && (prevDims.width !== width || prevDims.height !== height)
+
+    if (!managerRef.current || dimensionsChanged) {
+      // Reset manager with new dimensions
+      managerRef.current = resetLayerCanvasManager(width, height)
     }
+
+    prevDimensionsRef.current = { width, height }
   }, [width, height])
 
   // Sync layers from store to manager
@@ -36,9 +43,16 @@ export function useLayerCanvas() {
     const currentIds = manager.getLayerIds()
     const storeIds = layers.map(l => l.id)
 
-    // Add new layers
+    // Check if we need to recreate layers (e.g., new project)
+    const needsRecreate = currentIds.length === 1 && currentIds[0] === 'layer-1' &&
+      storeIds.length === 1 && storeIds[0] === 'layer-1' &&
+      layers[0]?.data
+
+    // Add new layers or update existing ones
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
+
+      // Create layer if it doesn't exist
       if (!currentIds.includes(layer.id)) {
         manager.createLayer(layer.id, i)
       }
@@ -49,9 +63,13 @@ export function useLayerCanvas() {
       manager.setLayerBlendMode(layer.id, layer.blendMode as any)
       manager.setLayerLocked(layer.id, layer.locked)
 
-      // Restore layer data if exists
+      // Restore layer data if exists (important for new projects with fill color)
       if (layer.data) {
-        manager.setLayerImageData(layer.id, layer.data)
+        const existingData = manager.getLayerImageData(layer.id)
+        // Only restore if layer is empty or we're doing initial setup
+        if (!existingData || needsRecreate || isEmptyImageData(existingData)) {
+          manager.setLayerImageData(layer.id, layer.data)
+        }
       }
     }
 
@@ -121,4 +139,14 @@ export function useLayerCanvas() {
     getManager,
     resetForNewProject,
   }
+}
+
+// Helper to check if ImageData is completely empty (all transparent)
+function isEmptyImageData(imageData: ImageData): boolean {
+  const data = imageData.data
+  // Check alpha channel - if all 0, the image is empty
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] !== 0) return false
+  }
+  return true
 }
