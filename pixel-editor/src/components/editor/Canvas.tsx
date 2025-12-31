@@ -10,6 +10,9 @@ import { ToolRegistry } from "@/tools/registry"
 import { bresenhamLine, floodFill, hexToRgb } from "@/lib/drawing"
 import { useSelection } from "@/hooks/useSelection"
 import { SelectionOperation, type SelectionRect } from "@/core/selection"
+import { useLayerCanvas } from "@/hooks/useLayerCanvas"
+import { compositeFrameLayers } from "@/core/layerCanvas"
+import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/core/onionSkin"
 
 // Import and register tools
 import "@/tools/design/Pencil"
@@ -31,15 +34,27 @@ interface Point {
 }
 
 export function Canvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const previewCanvasRef = useRef<HTMLCanvasElement>(null)
   const selectionCanvasRef = useRef<HTMLCanvasElement>(null)
+  const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPoint, setLastPoint] = useState<Point | null>(null)
   const [shapeStart, setShapeStart] = useState<Point | null>(null)
   const [preDrawImageData, setPreDrawImageData] = useState<ImageData | null>(null)
   const [selectionPreview, setSelectionPreview] = useState<SelectionRect | null>(null)
+  const [onionSkinSettings, setOnionSkinSettings] = useState<OnionSkinSettings>(getOnionSkinManager().getSettings())
+
+  // Layer canvas system
+  const { getCurrentLayerCtx, getCurrentLayer, composite, saveCurrentLayerData, getManager } = useLayerCanvas()
+
+  // Subscribe to onion skin settings changes
+  useEffect(() => {
+    const manager = getOnionSkinManager()
+    const unsubscribe = manager.subscribe(setOnionSkinSettings)
+    return unsubscribe
+  }, [])
 
   const {
     width,
@@ -58,6 +73,8 @@ export function Canvas() {
     showGrid,
     layers,
     currentLayerIndex,
+    frames,
+    currentFrameIndex,
     setPrimaryColor,
     setSecondaryColor,
     history,
@@ -75,7 +92,7 @@ export function Canvas() {
     isSelected,
     getMask,
   } = useSelection({
-    canvas: canvasRef.current,
+    canvas: displayCanvasRef.current,
     overlayCanvas: selectionCanvasRef.current,
   })
 
@@ -135,24 +152,51 @@ export function Canvas() {
     return mask
   }, [])
 
-  // Initialize canvas
+  // Initialize display canvas and composite layers
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const displayCanvas = displayCanvasRef.current
+    if (!displayCanvas) return
 
-    const ctx = canvas.getContext("2d")
+    const ctx = displayCanvas.getContext("2d")
     if (!ctx) return
 
     // Set up for pixel art
     ctx.imageSmoothingEnabled = false
 
-    // Clear canvas (transparent background)
+    // Composite all layers and draw to display
+    const composited = composite()
+    if (composited) {
+      ctx.clearRect(0, 0, width, height)
+      ctx.drawImage(composited, 0, 0)
+    }
+  }, [width, height, layers, currentLayerIndex, composite])
+
+  // Render onion skin effect
+  useEffect(() => {
+    const onionCanvas = onionSkinCanvasRef.current
+    if (!onionCanvas) return
+
+    const ctx = onionCanvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.imageSmoothingEnabled = false
     ctx.clearRect(0, 0, width, height)
-  }, [width, height])
+
+    // Only render if enabled and we have frames
+    if (!onionSkinSettings.enabled || frames.length === 0) return
+
+    // Composite each frame's layers into ImageData for onion skinning
+    const frameImageData: (ImageData | null)[] = frames.map(frame =>
+      compositeFrameLayers(width, height, frame.layers)
+    )
+
+    // Render onion skin
+    renderOnionSkin(ctx, currentFrameIndex, frameImageData, onionSkinSettings)
+  }, [width, height, frames, currentFrameIndex, onionSkinSettings])
 
   // Get canvas position from mouse event
   const getCanvasPoint = useCallback((e: React.MouseEvent | React.PointerEvent): Point => {
-    const canvas = canvasRef.current
+    const canvas = displayCanvasRef.current
     if (!canvas) return { x: 0, y: 0 }
 
     const rect = canvas.getBoundingClientRect()
@@ -196,26 +240,26 @@ export function Canvas() {
     points.forEach(p => drawPixel(ctx, p.x, p.y, color, size))
   }, [drawPixel, brushSize])
 
-  // Flood fill
+  // Flood fill - operates on current layer
   const doFloodFill = useCallback((x: number, y: number, fillColor: string) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
+    const ctx = getCurrentLayerCtx()
     if (!ctx) return
+
+    const layer = layers[currentLayerIndex]
+    if (!layer?.visible || layer?.locked) return
 
     const rgb = hexToRgb(fillColor)
     if (!rgb) return
 
     floodFill(ctx, x, y, { r: rgb.r, g: rgb.g, b: rgb.b, a: 255 })
-  }, [])
+  }, [getCurrentLayerCtx, layers, currentLayerIndex])
 
-  // Pick color from canvas
+  // Pick color from composited canvas (visible result)
   const pickColor = useCallback((x: number, y: number, isPrimary: boolean) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const composited = composite()
+    if (!composited) return
 
-    const ctx = canvas.getContext("2d")
+    const ctx = composited.getContext("2d")
     if (!ctx) return
 
     if (x < 0 || x >= width || y < 0 || y >= height) return
@@ -230,29 +274,28 @@ export function Canvas() {
     } else {
       setSecondaryColor(hex)
     }
-  }, [width, height, setPrimaryColor, setSecondaryColor])
+  }, [width, height, setPrimaryColor, setSecondaryColor, composite])
 
   // Draw shape preview on the preview canvas
   const drawShapePreview = useCallback((start: Point, end: Point, tool: string, color: string) => {
-    const canvas = canvasRef.current
+    const layerCtx = getCurrentLayerCtx()
     const preview = previewCanvasRef.current
-    if (!canvas || !preview) return
+    if (!layerCtx || !preview) return
 
-    const ctx = canvas.getContext("2d")
     const previewCtx = preview.getContext("2d")
-    if (!ctx || !previewCtx) return
+    if (!previewCtx) return
 
     // Clear preview
     previewCtx.clearRect(0, 0, width, height)
 
-    // Restore original image
+    // Restore original image on layer
     if (preDrawImageData) {
-      ctx.putImageData(preDrawImageData, 0, 0)
+      layerCtx.putImageData(preDrawImageData, 0, 0)
     }
 
-    // Draw shape preview on main canvas (temporary)
-    ctx.fillStyle = color
-    ctx.strokeStyle = color
+    // Draw shape preview on layer canvas (temporary)
+    layerCtx.fillStyle = color
+    layerCtx.strokeStyle = color
 
     const minX = Math.min(start.x, end.x)
     const minY = Math.min(start.y, end.y)
@@ -261,17 +304,17 @@ export function Canvas() {
 
     switch (tool) {
       case 'line':
-        drawLine(ctx, start, end, color, brushSize)
+        drawLine(layerCtx, start, end, color, brushSize)
         break
       case 'rectangle':
         // Draw rectangle outline
         for (let x = minX; x <= minX + w; x++) {
-          drawPixel(ctx, x, minY, color, 1)
-          drawPixel(ctx, x, minY + h, color, 1)
+          drawPixel(layerCtx, x, minY, color, 1)
+          drawPixel(layerCtx, x, minY + h, color, 1)
         }
         for (let y = minY; y <= minY + h; y++) {
-          drawPixel(ctx, minX, y, color, 1)
-          drawPixel(ctx, minX + w, y, color, 1)
+          drawPixel(layerCtx, minX, y, color, 1)
+          drawPixel(layerCtx, minX + w, y, color, 1)
         }
         break
       case 'ellipse':
@@ -280,10 +323,38 @@ export function Canvas() {
         const cy = (start.y + end.y) / 2
         const rx = w / 2
         const ry = h / 2
-        drawEllipse(ctx, cx, cy, rx, ry, color)
+        drawEllipse(layerCtx, cx, cy, rx, ry, color)
         break
     }
-  }, [width, height, brushSize, preDrawImageData, drawLine, drawPixel])
+
+    // Update display canvas with composited result
+    const displayCanvas = displayCanvasRef.current
+    if (displayCanvas) {
+      const displayCtx = displayCanvas.getContext("2d")
+      if (displayCtx) {
+        const composited = composite()
+        if (composited) {
+          displayCtx.clearRect(0, 0, width, height)
+          displayCtx.drawImage(composited, 0, 0)
+        }
+      }
+    }
+  }, [width, height, brushSize, preDrawImageData, drawLine, drawPixel, getCurrentLayerCtx, composite])
+
+  // Helper to update display canvas with composited layers
+  const updateDisplay = useCallback(() => {
+    const displayCanvas = displayCanvasRef.current
+    if (!displayCanvas) return
+
+    const displayCtx = displayCanvas.getContext("2d")
+    if (!displayCtx) return
+
+    const composited = composite()
+    if (composited) {
+      displayCtx.clearRect(0, 0, width, height)
+      displayCtx.drawImage(composited, 0, 0)
+    }
+  }, [composite, width, height])
 
   // Draw ellipse using midpoint algorithm
   const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string) => {
@@ -306,18 +377,18 @@ export function Canvas() {
 
   // Handle pointer down
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const displayCanvas = displayCanvasRef.current
+    if (!displayCanvas) return
 
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const layerCtx = getCurrentLayerCtx()
+    const currentLayerCanvas = getCurrentLayer()
 
     const point = getCanvasPoint(e)
     const isPrimary = e.button !== 2
     const color = isPrimary ? primaryColor : secondaryColor
 
-    // Capture state before drawing for undo
-    const beforeState = captureCanvasState(canvas)
+    // Capture state before drawing for undo (from current layer)
+    const beforeState = currentLayerCanvas?.ctx ? captureCanvasState(currentLayerCanvas.canvas) : null
     setPreDrawImageData(beforeState)
 
     setIsDrawing(true)
@@ -325,20 +396,28 @@ export function Canvas() {
 
     switch (currentTool) {
       case "pencil":
-        drawPixel(ctx, point.x, point.y, color)
+        if (layerCtx) {
+          drawPixel(layerCtx, point.x, point.y, color)
+          updateDisplay()
+        }
         break
       case "eraser":
-        ctx.clearRect(point.x - Math.floor(brushSize / 2), point.y - Math.floor(brushSize / 2), brushSize, brushSize)
+        if (layerCtx) {
+          layerCtx.clearRect(point.x - Math.floor(brushSize / 2), point.y - Math.floor(brushSize / 2), brushSize, brushSize)
+          updateDisplay()
+        }
         break
       case "bucket":
         doFloodFill(point.x, point.y, color)
-        // Add to history immediately for bucket
-        if (beforeState) {
-          const afterState = captureCanvasState(canvas)
+        updateDisplay()
+        // Add to history immediately for bucket (save layer data too)
+        if (beforeState && currentLayerCanvas) {
+          const afterState = captureCanvasState(currentLayerCanvas.canvas)
           if (afterState) {
-            history.addImageAction("Fill", canvas, beforeState, afterState)
+            history.addImageAction("Fill", currentLayerCanvas.canvas, beforeState, afterState)
           }
         }
+        saveCurrentLayerData()
         break
       case "colorPicker":
         pickColor(point.x, point.y, isPrimary)
@@ -370,34 +449,32 @@ export function Canvas() {
         }
         break
       case "magicWand":
-        // Magic wand selection - handled via event
-        const magicWandCanvas = canvas
-        const magicWandCtx = magicWandCanvas.getContext("2d")
-        if (magicWandCtx) {
-          const imageData = magicWandCtx.getImageData(0, 0, width, height)
-          const mask = floodSelectMask(imageData, point.x, point.y, 0)
-          const operation = e.shiftKey ? SelectionOperation.ADD
-            : e.altKey ? SelectionOperation.SUBTRACT
-            : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
-            : SelectionOperation.REPLACE
-          selectMask(mask, operation)
+        // Magic wand selection - use composited result
+        const compositedCanvas = composite()
+        if (compositedCanvas) {
+          const compositedCtx = compositedCanvas.getContext("2d")
+          if (compositedCtx) {
+            const imageData = compositedCtx.getImageData(0, 0, width, height)
+            const mask = floodSelectMask(imageData, point.x, point.y, 0)
+            const operation = e.shiftKey ? SelectionOperation.ADD
+              : e.altKey ? SelectionOperation.SUBTRACT
+              : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
+              : SelectionOperation.REPLACE
+            selectMask(mask, operation)
+          }
         }
         break
     }
 
     // Capture pointer for better tracking
-    canvas.setPointerCapture(e.pointerId)
-  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height])
+    displayCanvas.setPointerCapture(e.pointerId)
+  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height, getCurrentLayerCtx, getCurrentLayer, updateDisplay, composite, saveCurrentLayerData])
 
   // Handle pointer move
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return
 
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const layerCtx = getCurrentLayerCtx()
 
     const point = getCanvasPoint(e)
     const isPrimary = (e.buttons & 1) !== 0
@@ -405,16 +482,18 @@ export function Canvas() {
 
     switch (currentTool) {
       case "pencil":
-        if (lastPoint) {
-          drawLine(ctx, lastPoint, point, color)
+        if (lastPoint && layerCtx) {
+          drawLine(layerCtx, lastPoint, point, color)
+          updateDisplay()
         }
         break
       case "eraser":
-        if (lastPoint) {
+        if (lastPoint && layerCtx) {
           const points = bresenhamLine(lastPoint.x, lastPoint.y, point.x, point.y)
           points.forEach(p => {
-            ctx.clearRect(p.x - Math.floor(brushSize / 2), p.y - Math.floor(brushSize / 2), brushSize, brushSize)
+            layerCtx.clearRect(p.x - Math.floor(brushSize / 2), p.y - Math.floor(brushSize / 2), brushSize, brushSize)
           })
+          updateDisplay()
         }
         break
       case "line":
@@ -445,24 +524,29 @@ export function Canvas() {
     }
 
     setLastPoint(point)
-  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, lastPoint, shapeStart, drawLine, drawShapePreview, pan, pickColor])
+  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, lastPoint, shapeStart, drawLine, drawShapePreview, pan, pickColor, getCurrentLayerCtx, updateDisplay])
 
   // Handle pointer up
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return
 
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const displayCanvas = displayCanvasRef.current
+    if (!displayCanvas) return
 
+    const currentLayerCanvas = getCurrentLayer()
     const point = getCanvasPoint(e)
 
-    // Add action to history for drawing tools
+    // Add action to history for drawing tools and save layer data
     if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse'].includes(currentTool)) {
-      const afterState = captureCanvasState(canvas)
-      if (afterState) {
-        const toolName = currentTool.charAt(0).toUpperCase() + currentTool.slice(1)
-        history.addImageAction(toolName, canvas, preDrawImageData, afterState)
+      if (currentLayerCanvas) {
+        const afterState = captureCanvasState(currentLayerCanvas.canvas)
+        if (afterState) {
+          const toolName = currentTool.charAt(0).toUpperCase() + currentTool.slice(1)
+          history.addImageAction(toolName, currentLayerCanvas.canvas, preDrawImageData, afterState)
+        }
       }
+      // Save layer data to store
+      saveCurrentLayerData()
     }
 
     // Finalize rectangle selection
@@ -490,8 +574,8 @@ export function Canvas() {
     setPreDrawImageData(null)
 
     // Release pointer capture
-    canvas.releasePointerCapture(e.pointerId)
-  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect])
+    displayCanvas.releasePointerCapture(e.pointerId)
+  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, getCurrentLayer, saveCurrentLayerData])
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -566,9 +650,21 @@ export function Canvas() {
         }}
       >
         <div className="relative" style={{ width: canvasWidth, height: canvasHeight }}>
-          {/* Main canvas */}
+          {/* Onion skin canvas (behind main canvas) */}
           <canvas
-            ref={canvasRef}
+            ref={onionSkinCanvasRef}
+            width={width}
+            height={height}
+            className="absolute inset-0 pointer-events-none pixel-canvas"
+            style={{
+              width: canvasWidth,
+              height: canvasHeight,
+            }}
+          />
+
+          {/* Display canvas - shows composited layers */}
+          <canvas
+            ref={displayCanvasRef}
             width={width}
             height={height}
             className="pixel-canvas shadow-2xl checker-bg"
