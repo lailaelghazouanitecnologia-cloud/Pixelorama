@@ -10,7 +10,7 @@ import type { ToolCategory } from '../core/types'
 
 // Tool type - matches our registry names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading'  // Design tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray'  // Design tools
   | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand'                          // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
 
@@ -68,6 +68,10 @@ export interface EditorState {
   bucketTolerance: number
   shadingMode: ShadingMode
   shadingAmount: number
+  mirrorH: boolean
+  mirrorV: boolean
+  sprayDensity: number
+  sprayRadius: number
 
   // Colors
   primaryColor: string
@@ -119,6 +123,10 @@ export interface EditorState {
   setBucketTolerance: (tolerance: number) => void
   setShadingMode: (mode: ShadingMode) => void
   setShadingAmount: (amount: number) => void
+  setMirrorH: (enabled: boolean) => void
+  setMirrorV: (enabled: boolean) => void
+  setSprayDensity: (density: number) => void
+  setSprayRadius: (radius: number) => void
 
   // Colors
   setPrimaryColor: (color: string) => void
@@ -248,6 +256,10 @@ export const useEditorStore = create<EditorState>()(
     bucketTolerance: 0,
     shadingMode: 'lighten' as ShadingMode,
     shadingAmount: 10,
+    mirrorH: false,
+    mirrorV: false,
+    sprayDensity: 5,
+    sprayRadius: 8,
 
     // Colors
     primaryColor: '#ffffff',
@@ -339,6 +351,10 @@ export const useEditorStore = create<EditorState>()(
     setBucketTolerance: (tolerance) => set({ bucketTolerance: Math.max(0, Math.min(255, tolerance)) }),
     setShadingMode: (mode) => set({ shadingMode: mode }),
     setShadingAmount: (amount) => set({ shadingAmount: Math.max(0, Math.min(100, amount)) }),
+    setMirrorH: (enabled) => set({ mirrorH: enabled }),
+    setMirrorV: (enabled) => set({ mirrorV: enabled }),
+    setSprayDensity: (density) => set({ sprayDensity: Math.max(1, Math.min(20, density)) }),
+    setSprayRadius: (radius) => set({ sprayRadius: Math.max(1, Math.min(64, radius)) }),
 
     // Colors
     setPrimaryColor: (color) => set({ primaryColor: color }),
@@ -642,7 +658,10 @@ export const SHORTCUTS: Record<string, ToolName | (() => void)> = {
   'l': 'line',
   'r': 'rectangle',
   'o': 'ellipse',
+  'u': 'shading',
+  's': 'spray',
   'm': 'rectSelect',
+  'j': 'ellipseSelect',
   'i': 'colorPicker',
   'v': 'move',
   'h': 'pan',

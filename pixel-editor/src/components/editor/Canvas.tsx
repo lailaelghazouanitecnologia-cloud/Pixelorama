@@ -22,6 +22,7 @@ import "@/tools/design/LineTool"
 import "@/tools/design/RectangleTool"
 import "@/tools/design/EllipseTool"
 import "@/tools/design/Shading"
+import "@/tools/design/Spray"
 import "@/tools/utility/Pan"
 import "@/tools/utility/Zoom"
 import "@/tools/utility/ColorPicker"
@@ -89,6 +90,10 @@ export function Canvas() {
     filled,
     shadingMode,
     shadingAmount,
+    mirrorH,
+    mirrorV,
+    sprayDensity,
+    sprayRadius,
   } = useEditorStore()
 
   // Selection management
@@ -220,7 +225,7 @@ export function Canvas() {
     }
   }, [width, height])
 
-  // Draw single pixel or brush
+  // Draw single pixel or brush with mirror support
   const drawPixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, color: string, size: number = brushSize) => {
     const layer = layers[currentLayerIndex]
     if (!layer.visible || layer.locked) return
@@ -237,26 +242,60 @@ export function Canvas() {
       }
     }
 
+    // Calculate center of canvas for mirroring
+    const centerX = width / 2
+    const centerY = height / 2
+
+    // Get all positions to draw (including mirrored)
+    const getPositions = (baseX: number, baseY: number): Point[] => {
+      const positions: Point[] = [{ x: baseX, y: baseY }]
+
+      if (mirrorH) {
+        // Mirror horizontally around center
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        positions.push({ x: mirroredX, y: baseY })
+      }
+
+      if (mirrorV) {
+        // Mirror vertically around center
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: baseX, y: mirroredY })
+      }
+
+      if (mirrorH && mirrorV) {
+        // Mirror both (corner mirror)
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: mirroredX, y: mirroredY })
+      }
+
+      return positions
+    }
+
     if (size === 1) {
-      drawSinglePixel(x, y)
+      const positions = getPositions(x, y)
+      positions.forEach(p => drawSinglePixel(p.x, p.y))
     } else {
       const halfSize = Math.floor(size / 2)
       for (let dx = 0; dx < size; dx++) {
         for (let dy = 0; dy < size; dy++) {
           const px = x - halfSize + dx
           const py = y - halfSize + dy
-          drawSinglePixel(px, py)
+          const positions = getPositions(px, py)
+          positions.forEach(p => drawSinglePixel(p.x, p.y))
         }
       }
     }
-  }, [brushSize, width, height, layers, currentLayerIndex, overwrite])
+  }, [brushSize, width, height, layers, currentLayerIndex, overwrite, mirrorH, mirrorV])
 
-  // Apply shading (lighten/darken) to pixels
+  // Apply shading (lighten/darken) to pixels with mirror support
   const shadePixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number = brushSize) => {
     const layer = layers[currentLayerIndex]
     if (!layer.visible || layer.locked) return
 
     const factor = shadingAmount / 100
+    const centerX = width / 2
+    const centerY = height / 2
 
     const applyShadingToPixel = (px: number, py: number) => {
       if (px < 0 || px >= width || py < 0 || py >= height) return
@@ -294,19 +333,44 @@ export function Canvas() {
       ctx.putImageData(imageData, px, py)
     }
 
+    // Get all positions to shade (including mirrored)
+    const getPositions = (baseX: number, baseY: number): Point[] => {
+      const positions: Point[] = [{ x: baseX, y: baseY }]
+
+      if (mirrorH) {
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        positions.push({ x: mirroredX, y: baseY })
+      }
+
+      if (mirrorV) {
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: baseX, y: mirroredY })
+      }
+
+      if (mirrorH && mirrorV) {
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: mirroredX, y: mirroredY })
+      }
+
+      return positions
+    }
+
     if (size === 1) {
-      applyShadingToPixel(x, y)
+      const positions = getPositions(x, y)
+      positions.forEach(p => applyShadingToPixel(p.x, p.y))
     } else {
       const halfSize = Math.floor(size / 2)
       for (let dx = 0; dx < size; dx++) {
         for (let dy = 0; dy < size; dy++) {
           const px = x - halfSize + dx
           const py = y - halfSize + dy
-          applyShadingToPixel(px, py)
+          const positions = getPositions(px, py)
+          positions.forEach(p => applyShadingToPixel(p.x, p.y))
         }
       }
     }
-  }, [brushSize, width, height, layers, currentLayerIndex, shadingMode, shadingAmount])
+  }, [brushSize, width, height, layers, currentLayerIndex, shadingMode, shadingAmount, mirrorH, mirrorV])
 
   // Draw shading line using Bresenham
   const drawShadingLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, size: number = brushSize) => {
@@ -315,6 +379,115 @@ export function Canvas() {
       shadePixel(ctx, p.x, p.y, size)
     })
   }, [shadePixel, brushSize])
+
+  // Erase pixel or brush area with mirror support
+  const erasePixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number = brushSize) => {
+    const layer = layers[currentLayerIndex]
+    if (!layer.visible || layer.locked) return
+
+    const centerX = width / 2
+    const centerY = height / 2
+    const halfSize = Math.floor(size / 2)
+
+    const doErase = (px: number, py: number) => {
+      ctx.clearRect(px - halfSize, py - halfSize, size, size)
+    }
+
+    // Get all positions to erase (including mirrored)
+    const positions: Point[] = [{ x, y }]
+
+    if (mirrorH) {
+      const mirroredX = Math.floor(2 * centerX - x - 1)
+      positions.push({ x: mirroredX, y })
+    }
+
+    if (mirrorV) {
+      const mirroredY = Math.floor(2 * centerY - y - 1)
+      positions.push({ x, y: mirroredY })
+    }
+
+    if (mirrorH && mirrorV) {
+      const mirroredX = Math.floor(2 * centerX - x - 1)
+      const mirroredY = Math.floor(2 * centerY - y - 1)
+      positions.push({ x: mirroredX, y: mirroredY })
+    }
+
+    positions.forEach(p => doErase(p.x, p.y))
+  }, [brushSize, width, height, layers, currentLayerIndex, mirrorH, mirrorV])
+
+  // Erase line using Bresenham with mirror support
+  const eraseLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, size: number = brushSize) => {
+    const points = bresenhamLine(from.x, from.y, to.x, to.y)
+    points.forEach(p => {
+      erasePixel(ctx, p.x, p.y, size)
+    })
+  }, [erasePixel, brushSize])
+
+  // Track processed spray pixels per stroke
+  const sprayProcessedRef = useRef<Set<string>>(new Set())
+
+  // Spray random pixels with mirror support
+  const sprayPixels = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, color: string) => {
+    const layer = layers[currentLayerIndex]
+    if (!layer.visible || layer.locked) return
+
+    ctx.fillStyle = color
+    const centerX = width / 2
+    const centerY = height / 2
+
+    const drawSprayPixel = (px: number, py: number) => {
+      if (px >= 0 && px < width && py >= 0 && py < height) {
+        const key = `${px},${py}`
+        if (!sprayProcessedRef.current.has(key)) {
+          sprayProcessedRef.current.add(key)
+          ctx.fillRect(px, py, 1, 1)
+        }
+      }
+    }
+
+    // Get positions including mirrored
+    const getPositions = (baseX: number, baseY: number): Point[] => {
+      const positions: Point[] = [{ x: baseX, y: baseY }]
+
+      if (mirrorH) {
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        positions.push({ x: mirroredX, y: baseY })
+      }
+
+      if (mirrorV) {
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: baseX, y: mirroredY })
+      }
+
+      if (mirrorH && mirrorV) {
+        const mirroredX = Math.floor(2 * centerX - baseX - 1)
+        const mirroredY = Math.floor(2 * centerY - baseY - 1)
+        positions.push({ x: mirroredX, y: mirroredY })
+      }
+
+      return positions
+    }
+
+    // Spray random pixels within radius
+    for (let i = 0; i < sprayDensity; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const distance = Math.sqrt(Math.random()) * sprayRadius
+
+      const px = Math.floor(x + Math.cos(angle) * distance)
+      const py = Math.floor(y + Math.sin(angle) * distance)
+
+      const positions = getPositions(px, py)
+      positions.forEach(p => drawSprayPixel(p.x, p.y))
+    }
+  }, [width, height, layers, currentLayerIndex, mirrorH, mirrorV, sprayDensity, sprayRadius])
+
+  // Spray line using Bresenham
+  const sprayLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, color: string) => {
+    const points = bresenhamLine(from.x, from.y, to.x, to.y)
+    points.forEach(p => {
+      sprayPixels(ctx, p.x, p.y, color)
+    })
+  }, [sprayPixels])
 
   // Check if we should draw at position based on spacing mode
   const shouldDrawAtPosition = useCallback((pos: Point): boolean => {
@@ -559,9 +732,17 @@ export function Canvas() {
           updateDisplay()
         }
         break
+      case "spray":
+        // Reset spray processed pixels at start of stroke
+        sprayProcessedRef.current.clear()
+        if (layerCtx) {
+          sprayPixels(layerCtx, point.x, point.y, color)
+          updateDisplay()
+        }
+        break
       case "eraser":
         if (layerCtx) {
-          layerCtx.clearRect(point.x - Math.floor(brushSize / 2), point.y - Math.floor(brushSize / 2), brushSize, brushSize)
+          erasePixel(layerCtx, point.x, point.y)
           updateDisplay()
         }
         break
@@ -652,12 +833,15 @@ export function Canvas() {
           updateDisplay()
         }
         break
+      case "spray":
+        if (lastPoint && layerCtx) {
+          sprayLine(layerCtx, lastPoint, point, color)
+          updateDisplay()
+        }
+        break
       case "eraser":
         if (lastPoint && layerCtx) {
-          const points = bresenhamLine(lastPoint.x, lastPoint.y, point.x, point.y)
-          points.forEach(p => {
-            layerCtx.clearRect(p.x - Math.floor(brushSize / 2), p.y - Math.floor(brushSize / 2), brushSize, brushSize)
-          })
+          eraseLine(layerCtx, lastPoint, point)
           updateDisplay()
         }
         break
@@ -703,7 +887,7 @@ export function Canvas() {
     const point = getCanvasPoint(e)
 
     // Add action to history for drawing tools and save layer data
-    if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'shading'].includes(currentTool)) {
+    if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'shading', 'spray'].includes(currentTool)) {
       if (currentLayerCanvas) {
         const afterState = captureCanvasState(currentLayerCanvas.canvas)
         if (afterState) {
@@ -876,7 +1060,7 @@ export function Canvas() {
           />
 
           {/* Selection preview (while dragging) */}
-          {selectionPreview && (
+          {selectionPreview && currentTool === 'rectSelect' && (
             <div
               className="absolute pointer-events-none border border-dashed border-white"
               style={{
@@ -887,6 +1071,38 @@ export function Canvas() {
                 boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.5)',
               }}
             />
+          )}
+
+          {/* Ellipse selection preview */}
+          {selectionPreview && currentTool === 'ellipseSelect' && (
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              width={canvasWidth}
+              height={canvasHeight}
+              style={{ overflow: 'visible' }}
+            >
+              <ellipse
+                cx={(selectionPreview.x + selectionPreview.width / 2) * zoom}
+                cy={(selectionPreview.y + selectionPreview.height / 2) * zoom}
+                rx={selectionPreview.width * zoom / 2}
+                ry={selectionPreview.height * zoom / 2}
+                fill="none"
+                stroke="white"
+                strokeWidth="1"
+                strokeDasharray="4,4"
+              />
+              <ellipse
+                cx={(selectionPreview.x + selectionPreview.width / 2) * zoom}
+                cy={(selectionPreview.y + selectionPreview.height / 2) * zoom}
+                rx={selectionPreview.width * zoom / 2}
+                ry={selectionPreview.height * zoom / 2}
+                fill="none"
+                stroke="rgba(0,0,0,0.5)"
+                strokeWidth="1"
+                strokeDasharray="4,4"
+                strokeDashoffset="4"
+              />
+            </svg>
           )}
 
           {/* Grid overlay */}

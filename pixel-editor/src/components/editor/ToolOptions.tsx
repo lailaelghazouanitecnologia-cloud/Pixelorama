@@ -4,7 +4,7 @@
  */
 
 import { useEditorStore } from "@/store/editor-store"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space } from "lucide-react"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 
@@ -30,6 +30,14 @@ export function ToolOptions() {
     setShadingMode,
     shadingAmount,
     setShadingAmount,
+    mirrorH,
+    setMirrorH,
+    mirrorV,
+    setMirrorV,
+    sprayDensity,
+    setSprayDensity,
+    sprayRadius,
+    setSprayRadius,
     showGrid,
     toggleGrid,
     snapToGrid,
@@ -50,6 +58,7 @@ export function ToolOptions() {
   const showShapeOptions = ['rectangle', 'ellipse'].includes(currentTool)
   const showBucketOptions = currentTool === 'bucket'
   const showShadingOptions = currentTool === 'shading'
+  const showSprayOptions = currentTool === 'spray'
   const showSelectionOptions = ['rectSelect', 'ellipseSelect', 'magicWand', 'lasso'].includes(currentTool)
 
   return (
@@ -177,6 +186,36 @@ export function ToolOptions() {
                 />
               </div>
             )}
+
+            <div className="separator-v h-4" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${mirrorH ? 'active' : ''}`}
+                  onClick={() => setMirrorH(!mirrorH)}
+                >
+                  <Columns className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Mirror Horizontal (draw on both sides)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${mirrorV ? 'active' : ''}`}
+                  onClick={() => setMirrorV(!mirrorV)}
+                >
+                  <Rows className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Mirror Vertical (draw on top and bottom)</p>
+              </TooltipContent>
+            </Tooltip>
           </>
         )}
 
@@ -226,6 +265,47 @@ export function ToolOptions() {
               max={100}
             />
             <span className="text-pix-xs w-8 text-right">{shadingAmount}%</span>
+          </div>
+        )}
+
+        {/* Spray Options */}
+        {showSprayOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Radius:</span>
+            <input
+              type="range"
+              className="slider w-20"
+              value={sprayRadius}
+              onChange={(e) => setSprayRadius(parseInt(e.target.value))}
+              min={1}
+              max={64}
+            />
+            <input
+              type="number"
+              className="input w-10 text-center text-pix-xs py-0"
+              value={sprayRadius}
+              onChange={(e) => setSprayRadius(Math.max(1, Math.min(64, parseInt(e.target.value) || 1)))}
+              min={1}
+              max={64}
+            />
+            <div className="separator-v h-4" />
+            <span className="text-pix-xs text-pix-text-muted">Density:</span>
+            <input
+              type="range"
+              className="slider w-16"
+              value={sprayDensity}
+              onChange={(e) => setSprayDensity(parseInt(e.target.value))}
+              min={1}
+              max={20}
+            />
+            <input
+              type="number"
+              className="input w-10 text-center text-pix-xs py-0"
+              value={sprayDensity}
+              onChange={(e) => setSprayDensity(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              min={1}
+              max={20}
+            />
           </div>
         )}
 
