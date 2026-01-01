@@ -286,6 +286,7 @@ export interface EditorState {
   clearSelection: () => void
   selectAll: () => void
   invertSelection: () => void
+  modifySelection: (operation: 'expand' | 'shrink' | 'border' | 'feather' | 'grow' | 'smooth', value: number) => void
 
   // Clipboard
   clipboard: ImageData | null
@@ -1476,6 +1477,189 @@ export const useEditorStore = create<EditorState>()(
           y: 0,
           width,
           height,
+          mask: maskData,
+        },
+      }
+    }),
+
+    modifySelection: (operation, value) => set((state) => {
+      const { selection, width, height } = state
+      if (!selection.active) return state
+
+      // Create or get the current mask
+      let currentMask: Uint8Array
+      if (selection.mask) {
+        // Extract alpha channel as selection mask
+        currentMask = new Uint8Array(width * height)
+        for (let i = 0; i < currentMask.length; i++) {
+          currentMask[i] = selection.mask.data[i * 4 + 3]
+        }
+      } else {
+        // Create mask from rectangular selection
+        currentMask = new Uint8Array(width * height)
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const inSelection = x >= selection.x && x < selection.x + selection.width &&
+                                y >= selection.y && y < selection.y + selection.height
+            currentMask[y * width + x] = inSelection ? 255 : 0
+          }
+        }
+      }
+
+      let newMask = new Uint8Array(width * height)
+
+      switch (operation) {
+        case 'expand':
+        case 'shrink': {
+          const radius = value
+          const isExpand = operation === 'expand'
+          // Morphological dilation (expand) or erosion (shrink)
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              let found = isExpand ? false : true
+              for (let dy = -radius; dy <= radius && (isExpand ? !found : found); dy++) {
+                for (let dx = -radius; dx <= radius && (isExpand ? !found : found); dx++) {
+                  const nx = x + dx, ny = y + dy
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const dist = Math.sqrt(dx * dx + dy * dy)
+                    if (dist <= radius) {
+                      const val = currentMask[ny * width + nx]
+                      if (isExpand && val > 0) found = true
+                      if (!isExpand && val === 0) found = false
+                    }
+                  }
+                }
+              }
+              newMask[y * width + x] = (isExpand ? found : found) ? 255 : 0
+            }
+          }
+          break
+        }
+
+        case 'border': {
+          const borderWidth = value
+          // Create expanded and shrunk versions, then XOR
+          const expanded = new Uint8Array(width * height)
+          const shrunk = new Uint8Array(width * height)
+
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              let hasSelected = false, hasUnselected = false
+              for (let dy = -borderWidth; dy <= borderWidth; dy++) {
+                for (let dx = -borderWidth; dx <= borderWidth; dx++) {
+                  const nx = x + dx, ny = y + dy
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    if (Math.sqrt(dx * dx + dy * dy) <= borderWidth) {
+                      if (currentMask[ny * width + nx] > 0) hasSelected = true
+                      else hasUnselected = true
+                    }
+                  }
+                }
+              }
+              expanded[y * width + x] = hasSelected ? 255 : 0
+              shrunk[y * width + x] = hasUnselected ? 0 : (currentMask[y * width + x] > 0 ? 255 : 0)
+            }
+          }
+          // Border = expanded AND NOT shrunk
+          for (let i = 0; i < newMask.length; i++) {
+            newMask[i] = (expanded[i] > 0 && shrunk[i] === 0) ? 255 : 0
+          }
+          break
+        }
+
+        case 'feather': {
+          const radius = value
+          // Gaussian blur approximation on the mask
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              let sum = 0, weightSum = 0
+              for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                  const nx = x + dx, ny = y + dy
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const dist = Math.sqrt(dx * dx + dy * dy)
+                    if (dist <= radius) {
+                      const weight = Math.exp(-(dist * dist) / (2 * (radius / 2) * (radius / 2)))
+                      sum += currentMask[ny * width + nx] * weight
+                      weightSum += weight
+                    }
+                  }
+                }
+              }
+              newMask[y * width + x] = Math.round(sum / weightSum)
+            }
+          }
+          break
+        }
+
+        case 'smooth': {
+          const iterations = value
+          let tempMask = new Uint8Array(currentMask)
+          for (let iter = 0; iter < iterations; iter++) {
+            const nextMask = new Uint8Array(width * height)
+            for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                let sum = 0, count = 0
+                for (let dy = -1; dy <= 1; dy++) {
+                  for (let dx = -1; dx <= 1; dx++) {
+                    const nx = x + dx, ny = y + dy
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                      sum += tempMask[ny * width + nx]
+                      count++
+                    }
+                  }
+                }
+                nextMask[y * width + x] = Math.round(sum / count)
+              }
+            }
+            tempMask = nextMask
+          }
+          newMask = tempMask
+          break
+        }
+
+        case 'grow': {
+          // This would need the image data to compare colors
+          // For now, just copy the current mask
+          newMask = new Uint8Array(currentMask)
+          break
+        }
+      }
+
+      // Convert mask back to ImageData
+      const maskData = new ImageData(width, height)
+      for (let i = 0; i < newMask.length; i++) {
+        maskData.data[i * 4] = 255
+        maskData.data[i * 4 + 1] = 255
+        maskData.data[i * 4 + 2] = 255
+        maskData.data[i * 4 + 3] = newMask[i]
+      }
+
+      // Calculate bounding box
+      let minX = width, minY = height, maxX = 0, maxY = 0
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (newMask[y * width + x] > 0) {
+            minX = Math.min(minX, x)
+            minY = Math.min(minY, y)
+            maxX = Math.max(maxX, x)
+            maxY = Math.max(maxY, y)
+          }
+        }
+      }
+
+      if (maxX < minX) {
+        // No selection
+        return { selection: { active: false, x: 0, y: 0, width: 0, height: 0, mask: null } }
+      }
+
+      return {
+        selection: {
+          active: true,
+          x: minX,
+          y: minY,
+          width: maxX - minX + 1,
+          height: maxY - minY + 1,
           mask: maskData,
         },
       }

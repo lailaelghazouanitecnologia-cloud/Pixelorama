@@ -265,3 +265,40 @@ export function SelectionToolbar({
     </div>
   )
 }
+
+/**
+ * Wrapper component for DialogManager integration
+ * Reads operation from dialogData and wires up to editor store
+ */
+import { useDialogData } from "@/store/ui-store"
+import { useEditorStore } from "@/store/editor-store"
+
+interface SelectionModifyDialogData {
+  operation: SelectionModifyOperation
+}
+
+export function SelectionModifyDialogWrapper({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const dialogData = useDialogData<SelectionModifyDialogData>('selectionModify')
+  const { modifySelection } = useEditorStore()
+
+  const operation = dialogData?.operation || 'expand'
+
+  const handleApply = useCallback((op: SelectionModifyOperation, value: number) => {
+    modifySelection(op, value)
+  }, [modifySelection])
+
+  return (
+    <SelectionModifyDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      operation={operation}
+      onApply={handleApply}
+    />
+  )
+}

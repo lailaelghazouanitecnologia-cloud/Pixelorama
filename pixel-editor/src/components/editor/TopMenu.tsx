@@ -298,38 +298,38 @@ export function TopMenu() {
               <MenubarSubTrigger>Modify</MenubarSubTrigger>
               <MenubarSubContent className="panel">
                 <MenubarItem
-                  onClick={() => openDialog('selectionExpand')}
+                  onClick={() => openDialog('selectionModify', { operation: 'expand' })}
                   disabled={!selection.active}
                 >
                   Expand...
                 </MenubarItem>
                 <MenubarItem
-                  onClick={() => openDialog('selectionShrink')}
+                  onClick={() => openDialog('selectionModify', { operation: 'shrink' })}
                   disabled={!selection.active}
                 >
                   Shrink...
                 </MenubarItem>
                 <MenubarItem
-                  onClick={() => openDialog('selectionBorder')}
+                  onClick={() => openDialog('selectionModify', { operation: 'border' })}
                   disabled={!selection.active}
                 >
                   Border...
                 </MenubarItem>
                 <MenubarSeparator className="separator" />
                 <MenubarItem
-                  onClick={() => openDialog('selectionFeather')}
+                  onClick={() => openDialog('selectionModify', { operation: 'feather' })}
                   disabled={!selection.active}
                 >
                   Feather...
                 </MenubarItem>
                 <MenubarItem
-                  onClick={() => openDialog('selectionSmooth')}
+                  onClick={() => openDialog('selectionModify', { operation: 'smooth' })}
                   disabled={!selection.active}
                 >
                   Smooth
                 </MenubarItem>
                 <MenubarItem
-                  onClick={() => openDialog('selectionGrow')}
+                  onClick={() => openDialog('selectionModify', { operation: 'grow' })}
                   disabled={!selection.active}
                 >
                   Grow...

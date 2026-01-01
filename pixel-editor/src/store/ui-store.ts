@@ -29,6 +29,7 @@ export type DialogType =
   | 'gridSettings'
   | 'isometricGrid'
   | 'guidesSettings'
+  | 'selectionModify'
   | 'about'
   | 'startup'
   | 'confirm'
