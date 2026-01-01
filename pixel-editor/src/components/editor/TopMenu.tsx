@@ -20,7 +20,8 @@ import {
 import { useEditorStore } from "@/store/editor-store"
 import { useUIStore } from "@/store/ui-store"
 import { getHistory } from "@/core/history"
-import { downloadCanvas } from "@/core/export"
+import { downloadCanvas, exportAnimationAsGif } from "@/core/export"
+import { compositeFrameLayers } from "@/core/layerCanvas"
 import { downloadProject, openProjectDialog } from "@/core/project"
 import { loadReferenceImage } from "./ReferenceImage"
 
@@ -83,6 +84,8 @@ export function TopMenu() {
     paste,
     deleteSelection,
     clipboard,
+    frames,
+    fps,
   } = useEditorStore()
 
   const history = getHistory()
@@ -120,6 +123,36 @@ export function TopMenu() {
       downloadCanvas(canvas, projectName || 'untitled', { format: 'webp', quality: 0.9 })
     }
   }, [projectName])
+
+  const handleExportGIF = useCallback(async () => {
+    if (frames.length === 0) {
+      // Export single frame as GIF
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement
+      if (canvas) {
+        const frameCanvases = [canvas]
+        await exportAnimationAsGif(frameCanvases, projectName || 'untitled', fps || 12)
+      }
+      return
+    }
+
+    // Composite each frame's layers into a single canvas
+    const frameCanvases: HTMLCanvasElement[] = []
+    for (const frame of frames) {
+      const imageData = compositeFrameLayers(width, height, frame.layers)
+      if (imageData) {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(imageData, 0, 0)
+        frameCanvases.push(canvas)
+      }
+    }
+
+    if (frameCanvases.length > 0) {
+      await exportAnimationAsGif(frameCanvases, projectName || 'untitled', fps || 12)
+    }
+  }, [frames, fps, width, height, projectName])
 
   // Edit operations
   const handleUndo = useCallback(() => {
@@ -164,7 +197,7 @@ export function TopMenu() {
                 <MenubarItem onClick={handleExportWebP}>WebP</MenubarItem>
                 <MenubarSeparator className="separator" />
                 <MenubarItem onClick={() => openDialog('spritesheet')}>Spritesheet...</MenubarItem>
-                <MenubarItem>GIF Animation...</MenubarItem>
+                <MenubarItem onClick={handleExportGIF}>GIF Animation</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />

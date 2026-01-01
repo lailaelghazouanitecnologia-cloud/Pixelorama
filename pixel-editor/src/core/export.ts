@@ -282,14 +282,60 @@ function getMimeType(format: ExportFormat): string {
 }
 
 /**
- * Create a simple GIF from frames (basic implementation)
- * Note: For full GIF support, consider using a library like gif.js
+ * Export frames as animated GIF
  */
-export function framesToGifDataUrl(
-  _frames: HTMLCanvasElement[],
-  _fps: number
+export { createAnimatedGif, downloadAnimatedGif, GifEncoder } from './gifEncoder'
+
+import { createAnimatedGif } from './gifEncoder'
+
+/**
+ * Create animated GIF from frames and return as data URL
+ */
+export async function framesToGifDataUrl(
+  frames: HTMLCanvasElement[],
+  fps: number
 ): Promise<string> {
-  // This would require a GIF encoding library
-  // For now, return a placeholder
-  return Promise.reject(new Error('GIF export requires additional library (gif.js)'))
+  const blob = await createAnimatedGif(frames, fps)
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Failed to read GIF blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Export animation as GIF file download
+ */
+export async function exportAnimationAsGif(
+  frames: HTMLCanvasElement[],
+  filename: string,
+  fps: number = 12,
+  scale: number = 1
+): Promise<void> {
+  // Scale frames if needed
+  let exportFrames = frames
+  if (scale !== 1 && frames.length > 0) {
+    exportFrames = frames.map(frame => {
+      const scaled = document.createElement('canvas')
+      scaled.width = frame.width * scale
+      scaled.height = frame.height * scale
+      const ctx = scaled.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(frame, 0, 0, scaled.width, scaled.height)
+      return scaled
+    })
+  }
+
+  const blob = await createAnimatedGif(exportFrames, fps)
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filename}.gif`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  URL.revokeObjectURL(url)
 }
