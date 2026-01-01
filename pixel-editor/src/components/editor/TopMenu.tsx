@@ -33,13 +33,20 @@ export function TopMenu() {
     showGrid,
     showOnionSkin,
     showRulers,
+    showGuides,
     snapToGrid,
+    snapToGuides,
     canUndo,
     canRedo,
     toggleGrid,
     toggleOnionSkin,
     toggleRulers,
+    toggleGuides,
     toggleSnapToGrid,
+    toggleSnapToGuides,
+    addCenterGuides,
+    addThirdsGuides,
+    clearGuides,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -207,13 +214,29 @@ export function TopMenu() {
             <MenubarCheckboxItem checked={showRulers} onClick={toggleRulers}>
               Show Rulers
             </MenubarCheckboxItem>
+            <MenubarCheckboxItem checked={showGuides} onClick={toggleGuides}>
+              Show Guides
+            </MenubarCheckboxItem>
+            <MenubarSeparator className="separator" />
             <MenubarCheckboxItem checked={snapToGrid} onClick={toggleSnapToGrid}>
               Snap to Grid
+            </MenubarCheckboxItem>
+            <MenubarCheckboxItem checked={snapToGuides} onClick={toggleSnapToGuides}>
+              Snap to Guides
             </MenubarCheckboxItem>
             <MenubarCheckboxItem checked={showOnionSkin} onClick={toggleOnionSkin}>
               Onion Skinning
             </MenubarCheckboxItem>
             <MenubarSeparator className="separator" />
+            <MenubarSub>
+              <MenubarSubTrigger>Guides</MenubarSubTrigger>
+              <MenubarSubContent className="panel">
+                <MenubarItem onClick={addCenterGuides}>Add Center Guides</MenubarItem>
+                <MenubarItem onClick={addThirdsGuides}>Add Thirds Guides</MenubarItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem onClick={clearGuides}>Clear All Guides</MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
             <MenubarItem>Mirror View</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -238,20 +261,9 @@ export function TopMenu() {
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
-            <MenubarSub>
-              <MenubarSubTrigger>Effects</MenubarSubTrigger>
-              <MenubarSubContent className="panel">
-                <MenubarItem>Invert Colors</MenubarItem>
-                <MenubarItem>Desaturate</MenubarItem>
-                <MenubarItem>Outline...</MenubarItem>
-                <MenubarItem>Drop Shadow...</MenubarItem>
-                <MenubarItem>Gradient...</MenubarItem>
-                <MenubarSeparator className="separator" />
-                <MenubarItem>Brightness/Contrast...</MenubarItem>
-                <MenubarItem>Hue/Saturation...</MenubarItem>
-                <MenubarItem>Posterize...</MenubarItem>
-              </MenubarSubContent>
-            </MenubarSub>
+            <MenubarItem onClick={() => openDialog('effects')}>
+              Effects... <MenubarShortcut>Ctrl+U</MenubarShortcut>
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 

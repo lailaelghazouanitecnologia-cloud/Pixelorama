@@ -17,6 +17,7 @@ import { useLayerCanvas } from "@/hooks/useLayerCanvas"
 import { compositeFrameLayers } from "@/core/layerCanvas"
 import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/core/onionSkin"
 import { CanvasRulers, RULER_SIZE_PX } from "./Rulers"
+import { GuidesOverlay } from "./GuidesOverlay"
 import type { DrawingContext } from "@/core/types"
 
 // Import and register tools (side effects)
@@ -765,6 +766,9 @@ export function Canvas() {
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
           )}
+
+          {/* Guides overlay */}
+          <GuidesOverlay canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
         </div>
         </div>
       </div>

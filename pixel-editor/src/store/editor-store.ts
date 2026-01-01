@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { History, getHistory } from '../core/history'
 import type { ToolCategory } from '../core/types'
+import { type Guide, createGuide, generateGuideId } from '../core/guides'
 
 // Tool type - matches our registry names
 export type ToolName =
@@ -102,7 +103,9 @@ export interface EditorState {
   showRulers: boolean
   showGuides: boolean
   snapToGrid: boolean
+  snapToGuides: boolean
   gridSize: number
+  guides: Guide[]
 
   // Actions
   // Project
@@ -189,8 +192,20 @@ export interface EditorState {
   toggleRulers: () => void
   toggleGuides: () => void
   toggleSnapToGrid: () => void
+  toggleSnapToGuides: () => void
   setGridSize: (size: number) => void
   setCanvasSize: (width: number, height: number) => void
+
+  // Guides
+  addGuide: (type: 'horizontal' | 'vertical', position: number, color?: string) => void
+  removeGuide: (id: string) => void
+  updateGuide: (id: string, updates: Partial<Guide>) => void
+  clearGuides: () => void
+  addCenterGuides: () => void
+  addThirdsGuides: () => void
+
+  // Layer data update
+  updateLayers: (layers: Layer[]) => void
 }
 
 // Pixelorama default palette (PICO-8 extended)
@@ -290,7 +305,9 @@ export const useEditorStore = create<EditorState>()(
     showRulers: true,
     showGuides: true,
     snapToGrid: false,
+    snapToGuides: true,
     gridSize: 8,
+    guides: [],
 
     // === Actions ===
 
@@ -761,8 +778,52 @@ export const useEditorStore = create<EditorState>()(
     toggleRulers: () => set((state) => ({ showRulers: !state.showRulers })),
     toggleGuides: () => set((state) => ({ showGuides: !state.showGuides })),
     toggleSnapToGrid: () => set((state) => ({ snapToGrid: !state.snapToGrid })),
+    toggleSnapToGuides: () => set((state) => ({ snapToGuides: !state.snapToGuides })),
     setGridSize: (size) => set({ gridSize: Math.max(1, Math.min(64, size)) }),
     setCanvasSize: (width, height) => set({ width, height, modified: true }),
+
+    // Guides
+    addGuide: (type, position, color = '#00ffff') => set((state) => ({
+      guides: [...state.guides, createGuide(type, position, color)],
+    })),
+
+    removeGuide: (id) => set((state) => ({
+      guides: state.guides.filter(g => g.id !== id),
+    })),
+
+    updateGuide: (id, updates) => set((state) => ({
+      guides: state.guides.map(g => g.id === id ? { ...g, ...updates } : g),
+    })),
+
+    clearGuides: () => set({ guides: [] }),
+
+    addCenterGuides: () => set((state) => ({
+      guides: [
+        ...state.guides,
+        createGuide('horizontal', Math.floor(state.height / 2), '#00ffff'),
+        createGuide('vertical', Math.floor(state.width / 2), '#00ffff'),
+      ],
+    })),
+
+    addThirdsGuides: () => set((state) => ({
+      guides: [
+        ...state.guides,
+        createGuide('horizontal', Math.floor(state.height / 3), '#00ff00'),
+        createGuide('horizontal', Math.floor((state.height * 2) / 3), '#00ff00'),
+        createGuide('vertical', Math.floor(state.width / 3), '#00ff00'),
+        createGuide('vertical', Math.floor((state.width * 2) / 3), '#00ff00'),
+      ],
+    })),
+
+    // Layer data update (for effects dialog)
+    updateLayers: (layers) => set((state) => {
+      const newFrames = [...state.frames]
+      newFrames[state.currentFrameIndex] = {
+        ...newFrames[state.currentFrameIndex],
+        layers,
+      }
+      return { frames: newFrames, modified: true }
+    }),
   }))
 )
 
