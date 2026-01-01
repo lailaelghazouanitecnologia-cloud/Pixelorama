@@ -7,6 +7,7 @@
 import { useRef, useEffect, useState, useCallback } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
+import { useUIStore } from "@/store/ui-store"
 import { getHistory, captureCanvasState } from "@/core/history"
 import { ToolManager } from "@/tools/ToolManager"
 import { bresenhamLine } from "@/lib/drawing"
@@ -88,6 +89,9 @@ export function Canvas() {
 
   // Tool state from tools-store
   const { currentTool, brushSize, filled } = useToolsStore()
+
+  // UI state for cursor tracking
+  const { setCursorPosition, setCursorInCanvas } = useUIStore()
 
   // Selection management
   const {
@@ -591,6 +595,23 @@ export function Canvas() {
     e.preventDefault()
   }, [])
 
+  // Track cursor position for rulers and status bar
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    const point = getCanvasPoint(e as unknown as React.PointerEvent)
+    // Clamp to canvas bounds
+    const clampedX = Math.max(0, Math.min(width - 1, point.x))
+    const clampedY = Math.max(0, Math.min(height - 1, point.y))
+    setCursorPosition({ x: clampedX, y: clampedY })
+  }, [getCanvasPoint, width, height, setCursorPosition])
+
+  const handleCanvasEnter = useCallback(() => {
+    setCursorInCanvas(true)
+  }, [setCursorInCanvas])
+
+  const handleCanvasLeave = useCallback(() => {
+    setCursorInCanvas(false)
+  }, [setCursorInCanvas])
+
   const getCursor = () => {
     switch (currentTool) {
       case 'pan': return isDrawing ? 'grabbing' : 'grab'
@@ -651,7 +672,12 @@ export function Canvas() {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerLeave={(e) => {
+              handlePointerUp(e)
+              handleCanvasLeave()
+            }}
+            onPointerEnter={handleCanvasEnter}
+            onMouseMove={handleCanvasMouseMove}
             onContextMenu={handleContextMenu}
           />
 

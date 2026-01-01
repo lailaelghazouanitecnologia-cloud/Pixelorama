@@ -9,11 +9,14 @@ import { StatusBar } from "@/components/editor/StatusBar"
 import { StartupDialog } from "@/components/dialogs/StartupDialog"
 import { DialogManager } from "@/components/dialogs/DialogManager"
 import { useEditorStore } from "@/store/editor-store"
+import { useUIStore } from "@/store/ui-store"
 import { useToolsStore, TOOL_SHORTCUTS } from "@/store/tools-store"
+import { downloadProject, openProjectDialog } from "@/core/project"
 import { useEffect, useState } from "react"
 
 function App() {
-  const { setPrimaryColor, setSecondaryColor } = useEditorStore()
+  const { setPrimaryColor, setSecondaryColor, togglePlay } = useEditorStore()
+  const { openDialog } = useUIStore()
   const { setTool } = useToolsStore()
   const [showStartup, setShowStartup] = useState(true)
 
@@ -25,9 +28,37 @@ function App() {
         return
       }
 
+      const isCtrl = e.ctrlKey || e.metaKey
+
+      // File shortcuts (Ctrl+key)
+      if (isCtrl) {
+        switch (e.key.toLowerCase()) {
+          case 'n':
+            e.preventDefault()
+            openDialog('newProject')
+            return
+          case 'o':
+            e.preventDefault()
+            openProjectDialog()
+            return
+          case 's':
+            e.preventDefault()
+            downloadProject()
+            return
+          case 'e':
+            e.preventDefault()
+            openDialog('exportImage')
+            return
+          case 'i':
+            e.preventDefault()
+            openDialog('importImage')
+            return
+        }
+      }
+
       // Tool shortcuts from tools-store registry
       const toolName = TOOL_SHORTCUTS[e.key.toLowerCase()]
-      if (toolName) {
+      if (toolName && !isCtrl) {
         e.preventDefault()
         setTool(toolName)
         return
@@ -36,30 +67,36 @@ function App() {
       // Zoom shortcuts
       if (e.key === "=" || e.key === "+") {
         e.preventDefault()
-        useEditorStore.getState().setZoom(useEditorStore.getState().zoom + 1)
+        useEditorStore.getState().zoomIn()
       }
       if (e.key === "-") {
         e.preventDefault()
-        useEditorStore.getState().setZoom(useEditorStore.getState().zoom - 1)
+        useEditorStore.getState().zoomOut()
       }
 
       // Swap colors
-      if (e.key.toLowerCase() === "x") {
+      if (e.key.toLowerCase() === "x" && !isCtrl) {
         e.preventDefault()
         useEditorStore.getState().swapColors()
       }
 
       // Reset colors to default
-      if (e.key.toLowerCase() === "d") {
+      if (e.key.toLowerCase() === "d" && !isCtrl) {
         e.preventDefault()
         setPrimaryColor("#ffffff")
         setSecondaryColor("#000000")
+      }
+
+      // Play/pause animation
+      if (e.key === " ") {
+        e.preventDefault()
+        togglePlay()
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [setTool, setPrimaryColor, setSecondaryColor])
+  }, [setTool, setPrimaryColor, setSecondaryColor, openDialog, togglePlay])
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">

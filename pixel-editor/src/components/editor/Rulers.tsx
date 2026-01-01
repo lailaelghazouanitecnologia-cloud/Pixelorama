@@ -1,25 +1,31 @@
 /**
  * Rulers Component - Horizontal and vertical rulers for canvas
  * Based on Pixelorama's ruler system
+ * Shows pixel coordinates that sync with canvas pan position
  */
 
+import { useRef, useEffect, useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
-
-interface RulerProps {
-  orientation: 'horizontal' | 'vertical'
-  size: number // canvas size in pixels
-  zoom: number
-  offset: number // pan offset
-}
+import { useUIStore } from "@/store/ui-store"
 
 const RULER_SIZE = 16 // height/width of ruler in pixels
 
-function Ruler({ orientation, size, zoom, offset }: RulerProps) {
-  const isHorizontal = orientation === 'horizontal'
-  const pixelSize = zoom
+interface RulerProps {
+  orientation: 'horizontal' | 'vertical'
+  canvasSize: number // canvas size in pixels
+  zoom: number
+  offset: number // pan offset in screen pixels
+  containerSize: number // visible container size in screen pixels
+  cursorPixel: number | null // cursor position in canvas pixels
+}
 
-  // Calculate visible range
-  const totalSize = size * zoom
+function Ruler({ orientation, canvasSize, zoom, offset, containerSize, cursorPixel }: RulerProps) {
+  const isHorizontal = orientation === 'horizontal'
+
+  // Calculate the canvas position centered in container
+  const canvasScreenSize = canvasSize * zoom
+  const centerOffset = (containerSize - canvasScreenSize) / 2
+  const totalOffset = centerOffset + offset
 
   // Determine tick intervals based on zoom level
   const getTickInterval = () => {
@@ -34,15 +40,28 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
   const tickInterval = getTickInterval()
   const majorTickInterval = tickInterval * 4 // Label every 4th tick
 
-  // Generate tick marks
+  // Generate tick marks - only for visible range for performance
   const ticks: { pos: number; label?: number }[] = []
-  for (let i = 0; i <= size; i += tickInterval) {
-    const pos = i * pixelSize + offset
-    ticks.push({
-      pos,
-      label: i % majorTickInterval === 0 ? i : undefined
-    })
+
+  // Calculate visible pixel range
+  const startPixel = Math.max(0, Math.floor(-totalOffset / zoom))
+  const endPixel = Math.min(canvasSize, Math.ceil((containerSize - totalOffset) / zoom))
+
+  // Align to tick interval
+  const alignedStart = Math.floor(startPixel / tickInterval) * tickInterval
+
+  for (let i = alignedStart; i <= endPixel; i += tickInterval) {
+    const pos = i * zoom + totalOffset
+    if (pos >= 0 && pos <= containerSize) {
+      ticks.push({
+        pos,
+        label: i % majorTickInterval === 0 ? i : undefined
+      })
+    }
   }
+
+  // Cursor indicator position
+  const cursorPos = cursorPixel !== null ? cursorPixel * zoom + totalOffset : null
 
   if (isHorizontal) {
     return (
@@ -54,7 +73,7 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
           borderBottom: '1px solid var(--pix-border)'
         }}
       >
-        <svg width="100%" height={RULER_SIZE}>
+        <svg width="100%" height={RULER_SIZE} style={{ display: 'block' }}>
           {ticks.map((tick, i) => (
             <g key={i}>
               {/* Tick line */}
@@ -80,6 +99,17 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
               )}
             </g>
           ))}
+          {/* Cursor indicator */}
+          {cursorPos !== null && cursorPos >= 0 && cursorPos <= containerSize && (
+            <line
+              x1={cursorPos}
+              y1={0}
+              x2={cursorPos}
+              y2={RULER_SIZE}
+              stroke="var(--pix-accent)"
+              strokeWidth="1"
+            />
+          )}
         </svg>
       </div>
     )
@@ -95,7 +125,7 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
         borderRight: '1px solid var(--pix-border)'
       }}
     >
-      <svg width={RULER_SIZE} height="100%">
+      <svg width={RULER_SIZE} height="100%" style={{ display: 'block' }}>
         {ticks.map((tick, i) => (
           <g key={i}>
             {/* Tick line */}
@@ -107,7 +137,7 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
               stroke="var(--pix-text-muted)"
               strokeWidth="1"
             />
-            {/* Label */}
+            {/* Label - rotated for vertical */}
             {tick.label !== undefined && (
               <text
                 x={2}
@@ -122,6 +152,17 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
             )}
           </g>
         ))}
+        {/* Cursor indicator */}
+        {cursorPos !== null && cursorPos >= 0 && cursorPos <= containerSize && (
+          <line
+            x1={0}
+            y1={cursorPos}
+            x2={RULER_SIZE}
+            y2={cursorPos}
+            stroke="var(--pix-accent)"
+            strokeWidth="1"
+          />
+        )}
       </svg>
     </div>
   )
@@ -129,11 +170,40 @@ function Ruler({ orientation, size, zoom, offset }: RulerProps) {
 
 export function CanvasRulers() {
   const { width, height, zoom, panX, panY, showRulers } = useEditorStore()
+  const { cursorPosition, cursorInCanvas } = useUIStore()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+  // Track container size for proper ruler calculations
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current?.parentElement) {
+        const parent = containerRef.current.parentElement
+        setContainerSize({
+          width: parent.clientWidth - RULER_SIZE,
+          height: parent.clientHeight - RULER_SIZE,
+        })
+      }
+    }
+
+    updateSize()
+
+    const resizeObserver = new ResizeObserver(updateSize)
+    if (containerRef.current?.parentElement) {
+      resizeObserver.observe(containerRef.current.parentElement)
+    }
+
+    return () => resizeObserver.disconnect()
+  }, [])
 
   if (!showRulers) return null
 
+  // Get cursor pixel position for ruler indicators
+  const cursorX = cursorInCanvas && cursorPosition ? cursorPosition.x : null
+  const cursorY = cursorInCanvas && cursorPosition ? cursorPosition.y : null
+
   return (
-    <>
+    <div ref={containerRef}>
       {/* Corner box */}
       <div
         className="absolute top-0 left-0 z-10"
@@ -151,7 +221,14 @@ export function CanvasRulers() {
         className="absolute top-0 z-10"
         style={{ left: RULER_SIZE, right: 0, height: RULER_SIZE }}
       >
-        <Ruler orientation="horizontal" size={width} zoom={zoom} offset={panX} />
+        <Ruler
+          orientation="horizontal"
+          canvasSize={width}
+          zoom={zoom}
+          offset={panX}
+          containerSize={containerSize.width}
+          cursorPixel={cursorX}
+        />
       </div>
 
       {/* Vertical ruler */}
@@ -159,9 +236,16 @@ export function CanvasRulers() {
         className="absolute left-0 z-10"
         style={{ top: RULER_SIZE, bottom: 0, width: RULER_SIZE }}
       >
-        <Ruler orientation="vertical" size={height} zoom={zoom} offset={panY} />
+        <Ruler
+          orientation="vertical"
+          canvasSize={height}
+          zoom={zoom}
+          offset={panY}
+          containerSize={containerSize.height}
+          cursorPixel={cursorY}
+        />
       </div>
-    </>
+    </div>
   )
 }
 
