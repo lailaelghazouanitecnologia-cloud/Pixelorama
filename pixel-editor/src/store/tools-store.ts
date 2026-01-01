@@ -11,7 +11,7 @@ export type ToolCategory = 'design' | 'selection' | 'utility'
 
 // Tool names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray'  // Design tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
   | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand' | 'colorSelect'           // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
 
@@ -38,6 +38,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   ellipse: { name: 'ellipse', displayName: 'Ellipse', icon: 'ellipse', category: 'design', shortcut: 'O' },
   shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'D' },
   spray: { name: 'spray', displayName: 'Spray', icon: 'spray', category: 'design', shortcut: 'S' },
+  gradient: { name: 'gradient', displayName: 'Gradient', icon: 'gradient', category: 'design', shortcut: 'F' },
 
   // Selection tools
   rectSelect: { name: 'rectSelect', displayName: 'Rectangle Select', icon: 'rectSelect', category: 'selection', shortcut: 'M' },

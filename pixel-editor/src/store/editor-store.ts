@@ -11,7 +11,7 @@ import { type Guide, createGuide, generateGuideId } from '../core/guides'
 
 // Tool type - matches our registry names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray'  // Design tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
   | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand' | 'colorSelect'           // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
 

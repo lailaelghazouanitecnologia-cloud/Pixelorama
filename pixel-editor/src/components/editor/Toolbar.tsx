@@ -19,6 +19,7 @@ import {
   Wand2,
   PenTool,
   Palette,
+  Blend,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToolsStore, type ToolName } from "@/store/tools-store"
@@ -82,6 +83,12 @@ export function Toolbar() {
           icon={<PaintBucket className="w-4 h-4" />}
           label="Bucket Fill"
           shortcut="G"
+        />
+        <ToolButton
+          tool="gradient"
+          icon={<Blend className="w-4 h-4" />}
+          label="Gradient"
+          shortcut="F"
         />
 
         <ToolSeparator />
