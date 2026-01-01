@@ -9,6 +9,7 @@ import type { Point, ToolConfig, CanvasMouseEvent, DrawingContext, BrushConfig }
 import { DEFAULT_BRUSH_SIZE, DEFAULT_BRUSH_OPACITY } from '@/core/constants'
 import { bresenhamLine } from '@/lib/drawing'
 import { useToolsStore } from '@/store/tools-store'
+import { shouldDrawDithered } from '@/core/dithering'
 
 // ============================================================================
 // Draw Tool Config
@@ -333,6 +334,12 @@ export abstract class BaseDrawTool extends BaseTool {
     context: CanvasRenderingContext2D,
     ctx: DrawingContext
   ): void {
+    // Check dither pattern
+    const { ditherPattern } = useToolsStore.getState()
+    if (!shouldDrawDithered(x, y, ditherPattern)) {
+      return
+    }
+
     if (this.isEraser) {
       context.clearRect(x, y, 1, 1)
     } else {

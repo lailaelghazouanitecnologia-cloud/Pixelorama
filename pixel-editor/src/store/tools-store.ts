@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
+import type { DitherPattern } from '@/core/dithering'
 
 // Tool categories matching Pixelorama
 export type ToolCategory = 'design' | 'selection' | 'utility'
@@ -92,6 +93,9 @@ export interface ToolsState {
   sprayDensity: number
   sprayRadius: number
 
+  // Dithering
+  ditherPattern: DitherPattern
+
   // Dynamics (pressure sensitivity)
   dynamicsEnabled: boolean
   dynamicsAlpha: boolean
@@ -124,6 +128,7 @@ export interface ToolsState {
   setMirrorV: (enabled: boolean) => void
   setSprayDensity: (density: number) => void
   setSprayRadius: (radius: number) => void
+  setDitherPattern: (pattern: DitherPattern) => void
   setDynamicsEnabled: (enabled: boolean) => void
   setDynamicsAlpha: (enabled: boolean) => void
   setDynamicsSize: (enabled: boolean) => void
@@ -172,6 +177,9 @@ export const useToolsStore = create<ToolsState>()(
     // Spray settings
     sprayDensity: 5,
     sprayRadius: 8,
+
+    // Dithering
+    ditherPattern: 'none' as DitherPattern,
 
     // Dynamics
     dynamicsEnabled: false,
@@ -238,6 +246,8 @@ export const useToolsStore = create<ToolsState>()(
     setSprayRadius: (radius) => set({
       sprayRadius: Math.max(1, Math.min(64, radius))
     }),
+
+    setDitherPattern: (pattern) => set({ ditherPattern: pattern }),
 
     setDynamicsEnabled: (enabled) => set({ dynamicsEnabled: enabled }),
     setDynamicsAlpha: (enabled) => set({ dynamicsAlpha: enabled }),

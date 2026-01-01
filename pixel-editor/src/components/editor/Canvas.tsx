@@ -19,6 +19,7 @@ import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/
 import { CanvasRulers, RULER_SIZE_PX } from "./Rulers"
 import { GuidesOverlay } from "./GuidesOverlay"
 import { TilePreviewGrid } from "./TilePreview"
+import { ReferenceImage } from "./ReferenceImage"
 import type { DrawingContext } from "@/core/types"
 
 // Import and register tools (side effects)
@@ -784,6 +785,9 @@ export function Canvas() {
               currentLayerIndex={currentLayerIndex}
             />
           )}
+
+          {/* Reference image overlay */}
+          <ReferenceImage />
 
           {/* Guides overlay */}
           <GuidesOverlay canvasWidth={canvasWidth} canvasHeight={canvasHeight} />

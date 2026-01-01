@@ -22,6 +22,7 @@ import { useUIStore } from "@/store/ui-store"
 import { getHistory } from "@/core/history"
 import { downloadCanvas } from "@/core/export"
 import { downloadProject, openProjectDialog } from "@/core/project"
+import { loadReferenceImage } from "./ReferenceImage"
 
 export function TopMenu() {
   const { openDialog } = useUIStore()
@@ -275,6 +276,10 @@ export function TopMenu() {
             <MenubarCheckboxItem checked={tileMode} onClick={toggleTileMode}>
               Tile Mode
             </MenubarCheckboxItem>
+            <MenubarSeparator className="separator" />
+            <MenubarItem onClick={loadReferenceImage}>
+              Load Reference Image...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 

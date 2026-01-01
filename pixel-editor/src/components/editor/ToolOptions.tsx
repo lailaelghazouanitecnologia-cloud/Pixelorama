@@ -8,6 +8,7 @@ import { useToolsStore } from "@/store/tools-store"
 import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
+import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
 
 export function ToolOptions() {
   // Tool-specific settings from tools-store
@@ -40,6 +41,8 @@ export function ToolOptions() {
     setSprayDensity,
     sprayRadius,
     setSprayRadius,
+    ditherPattern,
+    setDitherPattern,
     currentTool,
   } = useToolsStore()
 
@@ -227,6 +230,18 @@ export function ToolOptions() {
                 <p>Mirror Vertical (draw on top and bottom)</p>
               </TooltipContent>
             </Tooltip>
+
+            <div className="separator-v h-4" />
+            <span className="text-pix-xs text-pix-text-muted">Dither:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={ditherPattern}
+              onChange={(e) => setDitherPattern(e.target.value as DitherPattern)}
+            >
+              {DITHER_PATTERN_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </>
         )}
 
