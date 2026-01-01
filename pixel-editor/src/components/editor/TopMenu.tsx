@@ -3,7 +3,7 @@
  * Based on Pixelorama's TopMenuContainer
  */
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useRef } from "react"
 import {
   Menubar,
   MenubarContent,
@@ -18,15 +18,13 @@ import {
   MenubarSubTrigger,
 } from "@/components/ui/menubar"
 import { useEditorStore } from "@/store/editor-store"
+import { useUIStore } from "@/store/ui-store"
 import { getHistory } from "@/core/history"
 import { downloadCanvas } from "@/core/export"
-import { NewProjectDialog, ExportDialog, ResizeCanvasDialog } from "@/components/dialogs"
 
 export function TopMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [newProjectOpen, setNewProjectOpen] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
-  const [resizeOpen, setResizeOpen] = useState(false)
+  const { openDialog } = useUIStore()
 
   const {
     projectName,
@@ -61,8 +59,8 @@ export function TopMenu() {
 
   // File operations
   const handleNew = useCallback(() => {
-    setNewProjectOpen(true)
-  }, [])
+    openDialog('newProject')
+  }, [openDialog])
 
   const handleOpen = useCallback(() => {
     fileInputRef.current?.click()
@@ -136,7 +134,7 @@ export function TopMenu() {
               Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem onClick={() => setExportOpen(true)}>
+            <MenubarItem onClick={() => openDialog('exportImage')}>
               Export... <MenubarShortcut>Ctrl+E</MenubarShortcut>
             </MenubarItem>
             <MenubarSub>
@@ -177,7 +175,12 @@ export function TopMenu() {
             </MenubarItem>
             <MenubarItem>Delete</MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Preferences...</MenubarItem>
+            <MenubarItem onClick={() => openDialog('preferences')}>
+              Preferences...
+            </MenubarItem>
+            <MenubarItem onClick={() => openDialog('keyboardShortcuts')}>
+              Keyboard Shortcuts...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -235,7 +238,7 @@ export function TopMenu() {
         <MenubarMenu>
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Image</MenubarTrigger>
           <MenubarContent className="panel">
-            <MenubarItem onClick={() => setResizeOpen(true)}>Resize Canvas...</MenubarItem>
+            <MenubarItem onClick={() => openDialog('resizeCanvas')}>Resize Canvas...</MenubarItem>
             <MenubarItem>Scale Image...</MenubarItem>
             <MenubarItem>Crop to Selection</MenubarItem>
             <MenubarSeparator className="separator" />
@@ -316,9 +319,13 @@ export function TopMenu() {
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Help</MenubarTrigger>
           <MenubarContent className="panel">
             <MenubarItem>Documentation</MenubarItem>
-            <MenubarItem>Keyboard Shortcuts</MenubarItem>
+            <MenubarItem onClick={() => openDialog('keyboardShortcuts')}>
+              Keyboard Shortcuts
+            </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>About Pixel Editor</MenubarItem>
+            <MenubarItem onClick={() => openDialog('about')}>
+              About Pixel Editor
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -328,11 +335,6 @@ export function TopMenu() {
           {projectName} ({width}×{height})
         </span>
       </Menubar>
-
-      {/* Dialogs */}
-      <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
-      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
-      <ResizeCanvasDialog open={resizeOpen} onOpenChange={setResizeOpen} />
     </>
   )
 }
