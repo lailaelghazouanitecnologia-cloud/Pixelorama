@@ -7,7 +7,15 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { History, getHistory } from '../core/history'
 import type { ToolCategory } from '../core/types'
-import { type Guide, createGuide, generateGuideId } from '../core/guides'
+import {
+  type Guide,
+  type PerspectiveGuide,
+  createGuide,
+  generateGuideId,
+  createOnePointPerspective,
+  createTwoPointPerspective,
+  createThreePointPerspective,
+} from '../core/guides'
 
 // Tool type - matches our registry names
 export type ToolName =
@@ -150,6 +158,9 @@ export interface EditorState {
   tileMode: boolean
   gridSize: number
   guides: Guide[]
+  perspectiveGuides: PerspectiveGuide[]
+  showPerspectiveGuides: boolean
+  activePerspectiveGuide: string | null // ID of currently active perspective guide
 
   // Actions
   // Project
@@ -292,6 +303,14 @@ export interface EditorState {
   addCenterGuides: () => void
   addThirdsGuides: () => void
 
+  // Perspective Guides
+  addPerspectiveGuide: (type: 'one-point' | 'two-point' | 'three-point') => void
+  removePerspectiveGuide: (id: string) => void
+  togglePerspectiveGuideVisibility: (id: string) => void
+  setActivePerspectiveGuide: (id: string | null) => void
+  togglePerspectiveGuides: () => void
+  clearPerspectiveGuides: () => void
+
   // Layer data update
   updateLayers: (layers: Layer[]) => void
 }
@@ -419,6 +438,9 @@ export const useEditorStore = create<EditorState>()(
     tileMode: false,
     gridSize: 8,
     guides: [],
+    perspectiveGuides: [],
+    showPerspectiveGuides: true,
+    activePerspectiveGuide: null,
     mirrorView: false,
 
     // === Actions ===
@@ -1557,6 +1579,50 @@ export const useEditorStore = create<EditorState>()(
         createGuide('vertical', Math.floor(state.width / 3), '#00ff00'),
         createGuide('vertical', Math.floor((state.width * 2) / 3), '#00ff00'),
       ],
+    })),
+
+    // Perspective Guides
+    addPerspectiveGuide: (type) => set((state) => {
+      let newGuide: PerspectiveGuide
+      switch (type) {
+        case 'one-point':
+          newGuide = createOnePointPerspective(state.width, state.height)
+          break
+        case 'two-point':
+          newGuide = createTwoPointPerspective(state.width, state.height)
+          break
+        case 'three-point':
+          newGuide = createThreePointPerspective(state.width, state.height)
+          break
+      }
+      return {
+        perspectiveGuides: [...state.perspectiveGuides, newGuide],
+        activePerspectiveGuide: newGuide.id,
+      }
+    }),
+
+    removePerspectiveGuide: (id) => set((state) => ({
+      perspectiveGuides: state.perspectiveGuides.filter(g => g.id !== id),
+      activePerspectiveGuide: state.activePerspectiveGuide === id ? null : state.activePerspectiveGuide,
+    })),
+
+    togglePerspectiveGuideVisibility: (id) => set((state) => ({
+      perspectiveGuides: state.perspectiveGuides.map(g =>
+        g.id === id ? { ...g, visible: !g.visible } : g
+      ),
+    })),
+
+    setActivePerspectiveGuide: (id) => set(() => ({
+      activePerspectiveGuide: id,
+    })),
+
+    togglePerspectiveGuides: () => set((state) => ({
+      showPerspectiveGuides: !state.showPerspectiveGuides,
+    })),
+
+    clearPerspectiveGuides: () => set(() => ({
+      perspectiveGuides: [],
+      activePerspectiveGuide: null,
     })),
 
     // Layer data update (for effects dialog)

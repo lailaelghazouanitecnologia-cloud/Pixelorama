@@ -86,6 +86,11 @@ export function TopMenu() {
     clipboard,
     frames,
     fps,
+    showPerspectiveGuides,
+    perspectiveGuides,
+    addPerspectiveGuide,
+    togglePerspectiveGuides,
+    clearPerspectiveGuides,
   } = useEditorStore()
 
   const history = getHistory()
@@ -355,6 +360,31 @@ export function TopMenu() {
                 <MenubarItem onClick={addThirdsGuides}>Add Thirds Guides</MenubarItem>
                 <MenubarSeparator className="separator" />
                 <MenubarItem onClick={clearGuides}>Clear All Guides</MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
+            <MenubarSub>
+              <MenubarSubTrigger>Perspective Guides</MenubarSubTrigger>
+              <MenubarSubContent className="panel">
+                <MenubarCheckboxItem checked={showPerspectiveGuides} onClick={togglePerspectiveGuides}>
+                  Show Perspective Guides
+                </MenubarCheckboxItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem onClick={() => addPerspectiveGuide('one-point')}>
+                  Add 1-Point Perspective
+                </MenubarItem>
+                <MenubarItem onClick={() => addPerspectiveGuide('two-point')}>
+                  Add 2-Point Perspective
+                </MenubarItem>
+                <MenubarItem onClick={() => addPerspectiveGuide('three-point')}>
+                  Add 3-Point Perspective
+                </MenubarItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem
+                  onClick={clearPerspectiveGuides}
+                  disabled={perspectiveGuides.length === 0}
+                >
+                  Clear Perspective Guides
+                </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarCheckboxItem checked={mirrorView} onClick={toggleMirrorView}>
