@@ -24,6 +24,7 @@ export type DialogType =
   | 'effects'
   | 'gradient'
   | 'onionSkin'
+  | 'animationTags'
   | 'gridSettings'
   | 'guidesSettings'
   | 'about'

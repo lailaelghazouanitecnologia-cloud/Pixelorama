@@ -17,6 +17,7 @@ import {
   Hand,
   Wand2,
   PenTool,
+  Palette,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToolsStore, type ToolName } from "@/store/tools-store"
@@ -118,6 +119,12 @@ export function Toolbar() {
           icon={<Wand2 className="w-4 h-4" />}
           label="Magic Wand"
           shortcut="W"
+        />
+        <ToolButton
+          tool="colorSelect"
+          icon={<Palette className="w-4 h-4" />}
+          label="Select by Color"
+          shortcut="U"
         />
         <Tooltip>
           <TooltipTrigger asChild>

@@ -12,7 +12,7 @@ export type ToolCategory = 'design' | 'selection' | 'utility'
 // Tool names
 export type ToolName =
   | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray'  // Design tools
-  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand'                          // Selection tools
+  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand' | 'colorSelect'           // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
@@ -36,7 +36,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   line: { name: 'line', displayName: 'Line', icon: 'line', category: 'design', shortcut: 'L' },
   rectangle: { name: 'rectangle', displayName: 'Rectangle', icon: 'rectangle', category: 'design', shortcut: 'R' },
   ellipse: { name: 'ellipse', displayName: 'Ellipse', icon: 'ellipse', category: 'design', shortcut: 'O' },
-  shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'U' },
+  shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'D' },
   spray: { name: 'spray', displayName: 'Spray', icon: 'spray', category: 'design', shortcut: 'S' },
 
   // Selection tools
@@ -44,6 +44,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   ellipseSelect: { name: 'ellipseSelect', displayName: 'Ellipse Select', icon: 'ellipseSelect', category: 'selection', shortcut: 'J' },
   lasso: { name: 'lasso', displayName: 'Lasso', icon: 'lasso', category: 'selection', shortcut: 'Q' },
   magicWand: { name: 'magicWand', displayName: 'Magic Wand', icon: 'magicWand', category: 'selection', shortcut: 'W' },
+  colorSelect: { name: 'colorSelect', displayName: 'Select by Color', icon: 'colorSelect', category: 'selection', shortcut: 'U' },
 
   // Utility tools
   colorPicker: { name: 'colorPicker', displayName: 'Color Picker', icon: 'colorPicker', category: 'utility', shortcut: 'I' },

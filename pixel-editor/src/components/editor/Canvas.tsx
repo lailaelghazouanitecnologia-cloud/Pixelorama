@@ -36,6 +36,7 @@ import "@/tools/utility/Move"
 import "@/tools/selection/RectSelect"
 import "@/tools/selection/EllipseSelect"
 import "@/tools/selection/MagicWand"
+import "@/tools/selection/ColorSelect"
 
 interface Point {
   x: number

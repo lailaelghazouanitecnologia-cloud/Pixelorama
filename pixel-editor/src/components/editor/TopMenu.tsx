@@ -62,6 +62,8 @@ export function TopMenu() {
     newProject,
     selectAll,
     clearSelection,
+    selection,
+    cropToSelection,
   } = useEditorStore()
 
   const history = getHistory()
@@ -247,7 +249,12 @@ export function TopMenu() {
           <MenubarContent className="panel">
             <MenubarItem onClick={() => openDialog('resizeCanvas')}>Resize Canvas...</MenubarItem>
             <MenubarItem>Scale Image...</MenubarItem>
-            <MenubarItem>Crop to Selection</MenubarItem>
+            <MenubarItem
+              onClick={cropToSelection}
+              disabled={!selection.active}
+            >
+              Crop to Selection
+            </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem>Flip Horizontal</MenubarItem>
             <MenubarItem>Flip Vertical</MenubarItem>
@@ -314,7 +321,9 @@ export function TopMenu() {
             </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem>Animation Properties...</MenubarItem>
-            <MenubarItem>Frame Tags...</MenubarItem>
+            <MenubarItem onClick={() => openDialog('animationTags')}>
+              Frame Tags...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
