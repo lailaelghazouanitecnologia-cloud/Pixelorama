@@ -224,6 +224,7 @@ class ToolManagerClass {
         this.floodFill(ctx, pos, options)
         break
       case 'line':
+      case 'curve':
       case 'rectangle':
       case 'ellipse':
         // Shape tools - just record start, draw on end
@@ -264,6 +265,7 @@ class ToolManagerClass {
         this.sprayLineWithMirror(ctx, lastPos, pos, options)
         break
       case 'line':
+      case 'curve':
       case 'rectangle':
       case 'ellipse':
         // Shape preview - handled by Canvas
@@ -642,7 +644,7 @@ class ToolManagerClass {
   }
 
   private shouldSaveHistory(toolName: string): boolean {
-    return ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'shading', 'spray', 'move'].includes(toolName)
+    return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'move'].includes(toolName)
   }
 
   private hexToRgb(hex: string): { r: number; g: number; b: number } | null {

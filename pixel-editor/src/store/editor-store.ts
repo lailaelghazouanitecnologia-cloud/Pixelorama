@@ -42,6 +42,10 @@ export interface Layer {
   parentId?: string   // ID of parent group (null = root level)
   // Clipping mask support
   clipped?: boolean   // If true, this layer clips to the layer below
+  // Cel linking support - links to source cel in another frame
+  linkedCelId?: string  // ID of the source layer this cel is linked to
+  // Layer effects (non-destructive)
+  effects?: import('./layerEffects').AnyLayerEffect[]
 }
 
 // All 20 blend modes matching Pixelorama's BaseLayer.gd
@@ -230,9 +234,17 @@ export interface EditorState {
   toggleClipping: (index: number) => void
   setClipping: (index: number, clipped: boolean) => void
 
+  // Layer Effects
+  addLayerEffect: (layerIndex: number, effectType: import('./layerEffects').EffectType) => void
+  removeLayerEffect: (layerIndex: number, effectId: string) => void
+  updateLayerEffect: (layerIndex: number, effectId: string, updates: Partial<import('./layerEffects').AnyLayerEffect>) => void
+  toggleLayerEffect: (layerIndex: number, effectId: string) => void
+  reorderLayerEffects: (layerIndex: number, fromIndex: number, toIndex: number) => void
+
   // Frames
   addFrame: () => void
   duplicateFrame: (index: number) => void
+  duplicateFrameLinked: (index: number) => void
   deleteFrame: (index: number) => void
   setCurrentFrame: (index: number) => void
   setFps: (fps: number) => void
@@ -240,6 +252,13 @@ export interface EditorState {
   togglePlay: () => void
   nextFrame: () => void
   prevFrame: () => void
+
+  // Cel Linking
+  linkCel: (frameIndex: number, layerIndex: number, sourceFrameIndex: number) => void
+  unlinkCel: (frameIndex: number, layerIndex: number) => void
+  isLinkedCel: (frameIndex: number, layerIndex: number) => boolean
+  getLinkedCelData: (frameIndex: number, layerIndex: number) => ImageData | null
+  updateLinkedCels: (sourceLayerId: string, newData: ImageData) => void
 
   // Animation Tags
   addTag: (name: string, fromFrame: number, toFrame: number, color?: string) => void
@@ -919,6 +938,90 @@ export const useEditorStore = create<EditorState>()(
       }
     }),
 
+    // Layer Effects
+    addLayerEffect: (layerIndex, effectType) => {
+      const {
+        createDropShadow,
+        createInnerShadow,
+        createOuterGlow,
+        createInnerGlow,
+        createStroke,
+        createColorOverlay,
+        createGradientOverlay,
+      } = require('./layerEffects')
+
+      let newEffect
+      switch (effectType) {
+        case 'drop-shadow': newEffect = createDropShadow(); break
+        case 'inner-shadow': newEffect = createInnerShadow(); break
+        case 'outer-glow': newEffect = createOuterGlow(); break
+        case 'inner-glow': newEffect = createInnerGlow(); break
+        case 'stroke': newEffect = createStroke(); break
+        case 'color-overlay': newEffect = createColorOverlay(); break
+        case 'gradient-overlay': newEffect = createGradientOverlay(); break
+        default: return
+      }
+
+      set((state) => ({
+        layers: state.layers.map((l, i) => {
+          if (i !== layerIndex) return l
+          return {
+            ...l,
+            effects: [...(l.effects || []), newEffect],
+          }
+        }),
+        modified: true,
+      }))
+    },
+
+    removeLayerEffect: (layerIndex, effectId) => set((state) => ({
+      layers: state.layers.map((l, i) => {
+        if (i !== layerIndex) return l
+        return {
+          ...l,
+          effects: (l.effects || []).filter(e => e.id !== effectId),
+        }
+      }),
+      modified: true,
+    })),
+
+    updateLayerEffect: (layerIndex, effectId, updates) => set((state) => ({
+      layers: state.layers.map((l, i) => {
+        if (i !== layerIndex) return l
+        return {
+          ...l,
+          effects: (l.effects || []).map(e =>
+            e.id === effectId ? { ...e, ...updates } : e
+          ),
+        }
+      }),
+      modified: true,
+    })),
+
+    toggleLayerEffect: (layerIndex, effectId) => set((state) => ({
+      layers: state.layers.map((l, i) => {
+        if (i !== layerIndex) return l
+        return {
+          ...l,
+          effects: (l.effects || []).map(e =>
+            e.id === effectId ? { ...e, enabled: !e.enabled } : e
+          ),
+        }
+      }),
+      modified: true,
+    })),
+
+    reorderLayerEffects: (layerIndex, fromIndex, toIndex) => set((state) => ({
+      layers: state.layers.map((l, i) => {
+        if (i !== layerIndex || !l.effects) return l
+        const effects = [...l.effects]
+        const [removed] = effects.splice(fromIndex, 1)
+        effects.splice(toIndex, 0, removed)
+        return { ...l, effects }
+      }),
+      modified: true,
+    })),
+
     // Frames
     addFrame: () => set((state) => ({
       frames: [...state.frames, {
@@ -988,6 +1091,149 @@ export const useEditorStore = create<EditorState>()(
         ? state.currentFrameIndex - 1
         : Math.max(0, state.frames.length - 1),
     })),
+
+    // Duplicate frame with linked cels (all layers link back to source frame)
+    duplicateFrameLinked: (index) => set((state) => {
+      const original = state.frames[index]
+      if (!original) return state
+
+      const newFrame: Frame = {
+        id: `frame-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        duration: original.duration,
+        layers: original.layers.map((l) => ({
+          ...l,
+          id: `layer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          // Link to original layer - data is null since it references source
+          linkedCelId: l.id,
+          data: null, // Linked cels don't store their own data
+        })),
+      }
+      const newFrames = [...state.frames]
+      newFrames.splice(index + 1, 0, newFrame)
+      return {
+        frames: newFrames,
+        currentFrameIndex: index + 1,
+        modified: true,
+      }
+    }),
+
+    // Cel Linking
+    linkCel: (frameIndex, layerIndex, sourceFrameIndex) => set((state) => {
+      const frame = state.frames[frameIndex]
+      const sourceFrame = state.frames[sourceFrameIndex]
+      if (!frame || !sourceFrame) return state
+
+      const sourceLayer = sourceFrame.layers[layerIndex]
+      if (!sourceLayer) return state
+
+      return {
+        frames: state.frames.map((f, fi) => {
+          if (fi !== frameIndex) return f
+          return {
+            ...f,
+            layers: f.layers.map((l, li) => {
+              if (li !== layerIndex) return l
+              return {
+                ...l,
+                linkedCelId: sourceLayer.id,
+                data: null, // Clear own data, will use linked data
+              }
+            }),
+          }
+        }),
+        modified: true,
+      }
+    }),
+
+    unlinkCel: (frameIndex, layerIndex) => set((state) => {
+      const frame = state.frames[frameIndex]
+      if (!frame) return state
+
+      const layer = frame.layers[layerIndex]
+      if (!layer || !layer.linkedCelId) return state
+
+      // Find and copy the source data
+      let sourceData: ImageData | null = null
+      for (const f of state.frames) {
+        for (const l of f.layers) {
+          if (l.id === layer.linkedCelId && l.data) {
+            // Deep copy the source data
+            sourceData = new ImageData(
+              new Uint8ClampedArray(l.data.data),
+              l.data.width,
+              l.data.height
+            )
+            break
+          }
+        }
+        if (sourceData) break
+      }
+
+      return {
+        frames: state.frames.map((f, fi) => {
+          if (fi !== frameIndex) return f
+          return {
+            ...f,
+            layers: f.layers.map((l, li) => {
+              if (li !== layerIndex) return l
+              return {
+                ...l,
+                linkedCelId: undefined,
+                data: sourceData,
+              }
+            }),
+          }
+        }),
+        modified: true,
+      }
+    }),
+
+    isLinkedCel: (frameIndex, layerIndex) => {
+      const state = get()
+      const frame = state.frames[frameIndex]
+      if (!frame) return false
+      const layer = frame.layers[layerIndex]
+      return layer?.linkedCelId !== undefined
+    },
+
+    getLinkedCelData: (frameIndex, layerIndex) => {
+      const state = get()
+      const frame = state.frames[frameIndex]
+      if (!frame) return null
+
+      const layer = frame.layers[layerIndex]
+      if (!layer) return null
+
+      // If not linked, return own data
+      if (!layer.linkedCelId) return layer.data
+
+      // Find the source layer's data
+      for (const f of state.frames) {
+        for (const l of f.layers) {
+          if (l.id === layer.linkedCelId) {
+            return l.data
+          }
+        }
+      }
+      return null
+    },
+
+    updateLinkedCels: (sourceLayerId, newData) => set((state) => {
+      // Update all cels that link to this source
+      return {
+        frames: state.frames.map((f) => ({
+          ...f,
+          layers: f.layers.map((l) => {
+            // Update the source layer itself
+            if (l.id === sourceLayerId) {
+              return { ...l, data: newData }
+            }
+            return l
+          }),
+        })),
+        modified: true,
+      }
+    }),
 
     // Animation Tags
     addTag: (name, fromFrame, toFrame, color = '#3b82f6') => set((state) => ({

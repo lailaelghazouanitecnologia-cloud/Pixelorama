@@ -12,9 +12,9 @@ export type ToolCategory = 'design' | 'selection' | 'utility'
 
 // Tool names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'curve' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
   | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'polygonSelect' | 'magicWand' | 'colorSelect'           // Selection tools
-  | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
+  | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'text'                                          // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
 
@@ -35,6 +35,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   eraser: { name: 'eraser', displayName: 'Eraser', icon: 'eraser', category: 'design', shortcut: 'E' },
   bucket: { name: 'bucket', displayName: 'Bucket Fill', icon: 'bucket', category: 'design', shortcut: 'G' },
   line: { name: 'line', displayName: 'Line', icon: 'line', category: 'design', shortcut: 'L' },
+  curve: { name: 'curve', displayName: 'Curve', icon: 'spline', category: 'design', shortcut: 'C' },
   rectangle: { name: 'rectangle', displayName: 'Rectangle', icon: 'rectangle', category: 'design', shortcut: 'R' },
   ellipse: { name: 'ellipse', displayName: 'Ellipse', icon: 'ellipse', category: 'design', shortcut: 'O' },
   shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'D' },
@@ -54,6 +55,8 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   move: { name: 'move', displayName: 'Move', icon: 'move', category: 'utility', shortcut: 'V' },
   pan: { name: 'pan', displayName: 'Pan', icon: 'pan', category: 'utility', shortcut: 'H' },
   zoom: { name: 'zoom', displayName: 'Zoom', icon: 'zoom', category: 'utility', shortcut: 'Z' },
+  crop: { name: 'crop', displayName: 'Crop', icon: 'crop', category: 'utility', shortcut: 'K' },
+  text: { name: 'text', displayName: 'Text', icon: 'type', category: 'design', shortcut: 'T' },
 }
 
 // Keyboard shortcuts mapping
@@ -279,7 +282,7 @@ export const useToolsStore = create<ToolsState>()(
 
     isDrawingTool: (tool) => {
       const toolName = tool || get().currentTool
-      return ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'shading', 'spray'].includes(toolName)
+      return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'text'].includes(toolName)
     },
 
     isSelectionTool: (tool) => {
