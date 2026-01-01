@@ -7,6 +7,7 @@ import { LayersPanel } from "@/components/editor/LayersPanel"
 import { Timeline } from "@/components/editor/Timeline"
 import { StatusBar } from "@/components/editor/StatusBar"
 import { StartupDialog } from "@/components/dialogs/StartupDialog"
+import { DialogManager } from "@/components/dialogs/DialogManager"
 import { useEditorStore } from "@/store/editor-store"
 import { useEffect, useState } from "react"
 
@@ -31,7 +32,10 @@ function App() {
         l: "line",
         r: "rectangle",
         o: "ellipse",
+        u: "shading",
+        s: "spray",
         m: "rectSelect",
+        j: "ellipseSelect",
         w: "magicWand",
         v: "move",
         h: "pan",
@@ -74,6 +78,9 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Dialog Manager - handles all lazy-loaded dialogs */}
+      <DialogManager />
+
       {/* Startup Dialog */}
       <StartupDialog open={showStartup} onOpenChange={setShowStartup} />
 
