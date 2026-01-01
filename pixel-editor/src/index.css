@@ -3,41 +3,41 @@
 @tailwind utilities;
 
 /*
- * Affinity-inspired theme - Modern, polished dark UI
- * Vibrant pink/magenta accents with soft, rounded panels
+ * Affinity-inspired theme - Professional dark UI
+ * Neutral charcoal grays with subtle blue undertones
  */
 
 @layer base {
   :root {
-    /* Base colors - softer dark theme */
-    --pix-bg-base: #1e1e24;
-    --pix-bg-secondary: #2a2a32;
-    --pix-bg-tertiary: #232329;
-    --pix-bg-hover: #3a3a44;
-    --pix-bg-pressed: #454550;
-    --pix-bg-elevated: #323238;
+    /* Base colors - Affinity charcoal palette */
+    --pix-bg-base: #1a1a1a;
+    --pix-bg-secondary: #222222;
+    --pix-bg-tertiary: #1e1e1e;
+    --pix-bg-hover: #2d2d2d;
+    --pix-bg-pressed: #363636;
+    --pix-bg-elevated: #2a2a2a;
 
-    /* Text colors */
-    --pix-text-primary: #e8e8ec;
-    --pix-text-secondary: #a8a8b0;
-    --pix-text-muted: #707078;
-    --pix-text-disabled: #505058;
+    /* Text colors - subtle and professional */
+    --pix-text-primary: #d4d4d4;
+    --pix-text-secondary: #9a9a9a;
+    --pix-text-muted: #666666;
+    --pix-text-disabled: #4a4a4a;
 
-    /* Vibrant pink/magenta accent (like Affinity) */
-    --pix-accent: #e120a5;
-    --pix-accent-hover: #f030b5;
-    --pix-accent-pressed: #c01090;
-    --pix-accent-muted: rgba(225, 32, 165, 0.25);
-    --pix-accent-subtle: rgba(225, 32, 165, 0.12);
+    /* Accent - subtle blue (Affinity uses blue for selections) */
+    --pix-accent: #4a9eff;
+    --pix-accent-hover: #5aadff;
+    --pix-accent-pressed: #3a8eef;
+    --pix-accent-muted: rgba(74, 158, 255, 0.2);
+    --pix-accent-subtle: rgba(74, 158, 255, 0.1);
 
-    /* Secondary accent (teal/cyan for variety) */
-    --pix-accent-secondary: #20c5dc;
-    --pix-accent-secondary-muted: rgba(32, 197, 220, 0.25);
+    /* Mode accent - pink/magenta (only for mode buttons like "Layout") */
+    --pix-mode-accent: #e120a5;
+    --pix-mode-accent-hover: #f030b5;
 
-    /* Borders */
-    --pix-border: #3a3a42;
-    --pix-border-light: #4a4a54;
-    --pix-border-dark: #18181c;
+    /* Borders - very subtle */
+    --pix-border: #333333;
+    --pix-border-light: #3d3d3d;
+    --pix-border-dark: #141414;
     --pix-border-focus: var(--pix-accent);
 
     /* Status colors */
@@ -45,39 +45,39 @@
     --pix-success: #38a169;
     --pix-warning: #d69e2e;
 
-    /* Shadows */
-    --pix-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --pix-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --pix-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-    --pix-shadow-glow: 0 0 20px rgba(225, 32, 165, 0.3);
+    /* Shadows - subtle */
+    --pix-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --pix-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --pix-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --pix-shadow-glow: 0 0 12px rgba(74, 158, 255, 0.25);
 
-    /* Radii - more rounded */
-    --pix-radius-sm: 4px;
-    --pix-radius-md: 6px;
-    --pix-radius-lg: 10px;
+    /* Radii - subtle rounding */
+    --pix-radius-sm: 3px;
+    --pix-radius-md: 4px;
+    --pix-radius-lg: 6px;
     --pix-radius-full: 9999px;
 
     /* Shadcn mappings */
-    --background: 240 12% 13%;
-    --foreground: 240 10% 91%;
-    --card: 240 10% 18%;
-    --card-foreground: 240 10% 91%;
-    --popover: 240 12% 13%;
-    --popover-foreground: 240 10% 91%;
-    --primary: 324 80% 49%;
+    --background: 0 0% 10%;
+    --foreground: 0 0% 83%;
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 83%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 83%;
+    --primary: 211 100% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 8% 20%;
-    --secondary-foreground: 240 10% 91%;
-    --muted: 240 8% 20%;
-    --muted-foreground: 240 8% 50%;
-    --accent: 240 8% 25%;
-    --accent-foreground: 240 10% 91%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 83%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 83%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 8% 25%;
-    --input: 240 8% 25%;
-    --ring: 324 80% 49%;
-    --radius: 6px;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 211 100% 65%;
+    --radius: 4px;
   }
 }
 
@@ -137,13 +137,13 @@
 /* Checker pattern for transparency */
 .checker-bg {
   background-image:
-    linear-gradient(45deg, #15151a 25%, transparent 25%),
-    linear-gradient(-45deg, #15151a 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #15151a 75%),
-    linear-gradient(-45deg, transparent 75%, #15151a 75%);
+    linear-gradient(45deg, #151515 25%, transparent 25%),
+    linear-gradient(-45deg, #151515 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #151515 75%),
+    linear-gradient(-45deg, transparent 75%, #151515 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-  background-color: #1a1a20;
+  background-color: #1f1f1f;
 }
 
 /* ========================================
@@ -151,10 +151,9 @@
    ======================================== */
 
 .panel {
-  background: linear-gradient(180deg, var(--pix-bg-secondary) 0%, var(--pix-bg-tertiary) 100%);
+  background: var(--pix-bg-secondary);
   border: 1px solid var(--pix-border);
   border-radius: var(--pix-radius-md);
-  box-shadow: var(--pix-shadow-sm);
 }
 
 .panel-header {
@@ -221,26 +220,24 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--pix-text-primary);
-  background: linear-gradient(180deg, var(--pix-bg-hover) 0%, var(--pix-bg-secondary) 100%);
+  background: var(--pix-bg-hover);
   border: 1px solid var(--pix-border);
-  border-radius: var(--pix-radius-md);
+  border-radius: var(--pix-radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: var(--pix-shadow-sm);
+  transition: all 0.1s ease;
 }
 
 .btn:hover {
-  background: linear-gradient(180deg, var(--pix-bg-pressed) 0%, var(--pix-bg-hover) 100%);
+  background: var(--pix-bg-pressed);
   border-color: var(--pix-border-light);
 }
 
 .btn:active {
-  transform: translateY(1px);
-  box-shadow: none;
+  background: var(--pix-bg-elevated);
 }
 
 .btn:disabled {
@@ -250,16 +247,14 @@
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, var(--pix-accent-hover) 0%, var(--pix-accent) 100%);
+  background: var(--pix-accent);
   border-color: var(--pix-accent);
   color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, var(--pix-accent) 0%, var(--pix-accent-pressed) 100%);
+  background: var(--pix-accent-hover);
   border-color: var(--pix-accent-hover);
-  box-shadow: var(--pix-shadow-glow);
 }
 
 .btn-primary:active {
@@ -318,7 +313,7 @@
   align-items: center;
   height: 28px;
   padding: 0 8px;
-  background: linear-gradient(180deg, var(--pix-bg-secondary) 0%, var(--pix-bg-tertiary) 100%);
+  background: var(--pix-bg-tertiary);
   border-bottom: 1px solid var(--pix-border);
 }
 
@@ -608,7 +603,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   min-width: 320px;
-  background: linear-gradient(180deg, var(--pix-bg-secondary) 0%, var(--pix-bg-tertiary) 100%);
+  background: var(--pix-bg-secondary);
   border: 1px solid var(--pix-border);
   border-radius: var(--pix-radius-lg);
   box-shadow: var(--pix-shadow-lg);
@@ -801,8 +796,7 @@
 .canvas-container {
   position: relative;
   flex: 1;
-  background:
-    radial-gradient(circle at center, var(--pix-bg-base) 0%, #15151a 100%);
+  background: #171717;
   overflow: hidden;
 }
 
@@ -958,10 +952,10 @@
 /* Subtle animation for loading states */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(225, 32, 165, 0.3);
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.2);
   }
   50% {
-    box-shadow: 0 0 20px rgba(225, 32, 165, 0.5);
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.4);
   }
 }
 
