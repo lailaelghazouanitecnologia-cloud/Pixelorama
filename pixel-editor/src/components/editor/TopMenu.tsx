@@ -527,10 +527,7 @@ export function TopMenu() {
               Flatten Image
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem onClick={() => {
-              // Layer properties are shown in the Layers panel
-              // Focus the layers panel tab
-            }}>
+            <MenubarItem onClick={() => openDialog('layerProperties')}>
               Layer Properties...
             </MenubarItem>
           </MenubarContent>

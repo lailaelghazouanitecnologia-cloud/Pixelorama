@@ -247,7 +247,7 @@ export function AudioTimeline({ className = "", height = 120 }: AudioTimelinePro
     setDragRegionId(null)
   }, [])
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleDoubleClick = useCallback(async (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -261,11 +261,38 @@ export function AudioTimeline({ className = "", height = 120 }: AudioTimelinePro
     const layerIndex = Math.floor(y / layerHeight)
 
     if (layerIndex >= 0 && layerIndex < audioLayers.length) {
-      // Open region properties or add new region
-      // For now, we'll just log
-      console.log('Double click at frame', frame, 'layer', layerIndex)
+      const layer = audioLayers[layerIndex]
+
+      // Check if clicking on an existing region
+      for (const region of layer.regions) {
+        const clip = getClip(region.clipId)
+        if (!clip) continue
+
+        const regionStart = region.startFrame
+        const regionEnd = regionStart + Math.ceil(region.duration * fps)
+
+        if (frame >= regionStart && frame < regionEnd) {
+          // Double-clicked on existing region - could open properties dialog
+          // For now, just select it
+          selectRegion(region.id)
+          return
+        }
+      }
+
+      // Double-clicked on empty space - import audio at this frame
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'audio/*'
+      input.onchange = async (evt) => {
+        const file = (evt.target as HTMLInputElement).files?.[0]
+        if (file) {
+          const clip = await loadClip(file)
+          addRegion(layerIndex, clip.id, frame)
+        }
+      }
+      input.click()
     }
-  }, [audioLayers, pixelsPerFrame])
+  }, [audioLayers, pixelsPerFrame, fps, getClip, selectRegion, loadClip, addRegion])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Delete' && selectedRegionId) {

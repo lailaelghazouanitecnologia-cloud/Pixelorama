@@ -30,6 +30,8 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   gridSettings: lazy(() => import('./GridSettingsDialog').then(m => ({ default: m.GridSettingsDialog }))),
   guidesSettings: lazy(() => import('./GuidesSettingsDialog').then(m => ({ default: m.GuidesSettingsDialog }))),
   selectionModify: lazy(() => import('./SelectionModifyDialog').then(m => ({ default: m.SelectionModifyDialogWrapper }))),
+  layerProperties: lazy(() => import('./LayerPropertiesDialog').then(m => ({ default: m.LayerPropertiesDialog }))),
+  flipRotate: lazy(() => import('./FlipRotateDialog').then(m => ({ default: m.FlipRotateDialog }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),
   preferences: lazy(() => import('./PreferencesDialog').then(m => ({ default: m.PreferencesDialog }))),
   keyboardShortcuts: lazy(() => import('./KeyboardShortcutsDialog').then(m => ({ default: m.KeyboardShortcutsDialog }))),
