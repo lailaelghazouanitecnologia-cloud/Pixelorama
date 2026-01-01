@@ -8,6 +8,7 @@ import { ArrowLeftRight, Plus, Trash2, Download, Upload, Pipette, ChevronDown } 
 import { cn } from "@/lib/utils"
 import { useState, useCallback, useMemo, useRef } from "react"
 import { downloadPalette, openPaletteDialog, PRESET_PALETTES } from "@/core/palette"
+import { generateHarmony, HARMONY_TYPES, type HarmonyType } from "@/core/colorHarmony"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,7 +146,13 @@ export function ColorPanel() {
     setEditingHex(false)
   }
 
-  const [activeTab, setActiveTab] = useState<'colour' | 'swatches'>('colour')
+  const [activeTab, setActiveTab] = useState<'colour' | 'swatches' | 'harmony'>('colour')
+  const [harmonyType, setHarmonyType] = useState<HarmonyType>('complementary')
+
+  // Generate harmony colors based on primary color
+  const harmonyColors = useMemo(() => {
+    return generateHarmony(primaryColor, harmonyType)
+  }, [primaryColor, harmonyType])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--pix-bg-secondary)' }}>
@@ -162,6 +169,12 @@ export function ColorPanel() {
           onClick={() => setActiveTab('swatches')}
         >
           Swatches
+        </button>
+        <button
+          className={cn("panel-tab", activeTab === 'harmony' && "active")}
+          onClick={() => setActiveTab('harmony')}
+        >
+          Harmony
         </button>
       </div>
 
@@ -348,7 +361,7 @@ export function ColorPanel() {
             <span className="text-pix-xs w-12 text-right font-mono">100 %</span>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'swatches' ? (
         /* Swatches Tab */
         <div className="flex-1 flex flex-col">
           {/* Swatches Toolbar */}
@@ -430,7 +443,70 @@ export function ColorPanel() {
             </div>
           </div>
         </div>
-      )}
+      ) : activeTab === 'harmony' ? (
+        /* Harmony Tab */
+        <div className="flex-1 flex flex-col">
+          {/* Harmony Type Selector */}
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--pix-border)' }}>
+            <select
+              className="input w-full py-1 text-pix-xs"
+              value={harmonyType}
+              onChange={(e) => setHarmonyType(e.target.value as HarmonyType)}
+            >
+              {HARMONY_TYPES.map((h) => (
+                <option key={h.type} value={h.type}>{h.label}</option>
+              ))}
+            </select>
+            <p className="text-pix-xs text-pix-text-muted mt-1">
+              {harmonyColors.description}
+            </p>
+          </div>
+
+          {/* Harmony Colors */}
+          <div className="flex-1 overflow-auto p-3">
+            {/* Base Color */}
+            <div className="mb-3">
+              <span className="text-pix-xs text-pix-text-muted mb-1 block">Base Color</span>
+              <div
+                className="w-full h-8 rounded cursor-pointer"
+                style={{ backgroundColor: primaryColor }}
+                title={primaryColor}
+              />
+            </div>
+
+            {/* Generated Harmony */}
+            <div className="mb-3">
+              <span className="text-pix-xs text-pix-text-muted mb-1 block">Harmony Colors</span>
+              <div className="flex gap-1">
+                {harmonyColors.colors.map((color, i) => (
+                  <button
+                    key={i}
+                    className="flex-1 h-8 rounded hover:ring-2 ring-white/50 transition-all"
+                    style={{ backgroundColor: color }}
+                    onClick={() => setPrimaryColor(color)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setSecondaryColor(color)
+                    }}
+                    title={`${color}\nLeft: Set Primary\nRight: Set Secondary`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Add to Palette */}
+            <button
+              className="btn w-full text-pix-xs py-1"
+              onClick={() => {
+                harmonyColors.colors.forEach(c => addToPalette(c))
+              }}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Harmony to Palette
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
