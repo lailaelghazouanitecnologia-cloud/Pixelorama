@@ -5,6 +5,7 @@
 
 import { BaseTool } from './BaseTool'
 import type { Point, Rect, CanvasMouseEvent, DrawingContext } from '@/core/types'
+import { useEditorStore } from '@/store/editor-store'
 
 // ============================================================================
 // Selection Mode
@@ -159,21 +160,24 @@ export abstract class BaseSelectionTool extends BaseTool {
    */
   clearSelection(): void {
     this.selectionState.bounds = null
-    // TODO: Emit selection changed event
+    const { clearSelection } = useEditorStore.getState()
+    clearSelection()
   }
 
   /**
    * Select all.
    */
   selectAll(_ctx: DrawingContext): void {
-    // TODO: Implement select all
+    const { selectAll } = useEditorStore.getState()
+    selectAll()
   }
 
   /**
    * Invert selection.
    */
   invertSelection(): void {
-    // TODO: Implement invert selection
+    const { invertSelection } = useEditorStore.getState()
+    invertSelection()
   }
 
   // ============================================================================

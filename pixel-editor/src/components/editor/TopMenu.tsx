@@ -243,7 +243,13 @@ export function TopMenu() {
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Quit</MenubarItem>
+            <MenubarItem onClick={() => {
+              if (confirm('Are you sure you want to quit? Unsaved changes will be lost.')) {
+                window.close()
+              }
+            }}>
+              Quit
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -555,7 +561,9 @@ export function TopMenu() {
         <MenubarMenu>
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Help</MenubarTrigger>
           <MenubarContent className="panel">
-            <MenubarItem>Documentation</MenubarItem>
+            <MenubarItem onClick={() => window.open('https://orama-interactive.github.io/Pixelorama-Docs/', '_blank')}>
+              Documentation
+            </MenubarItem>
             <MenubarItem onClick={() => openDialog('keyboardShortcuts')}>
               Keyboard Shortcuts
             </MenubarItem>

@@ -4,6 +4,7 @@
  */
 
 import { useEditorStore } from "@/store/editor-store"
+import { useToolsStore } from "@/store/tools-store"
 import { ArrowLeftRight, Plus, Trash2, Download, Upload, Pipette, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useCallback, useMemo, useRef } from "react"
@@ -86,9 +87,15 @@ export function ColorPanel() {
     setPalette,
   } = useEditorStore()
 
+  const { brushOpacity, setBrushOpacity } = useToolsStore()
+
   const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<number | null>(null)
   const [editingHex, setEditingHex] = useState(false)
   const [hexInput, setHexInput] = useState(primaryColor)
+
+  // Refs for hidden color pickers
+  const primaryColorInputRef = useRef<HTMLInputElement>(null)
+  const secondaryColorInputRef = useRef<HTMLInputElement>(null)
 
   // HSV state derived from primary color
   const hsv = useMemo(() => hexToHsv(primaryColor), [primaryColor])
@@ -185,23 +192,37 @@ export function ColorPanel() {
             {/* Primary/Secondary Colors - Larger like Affinity */}
             <div className="color-display">
               <div
-                className="color-primary checker-bg"
-                title="Primary Color (Left Click)"
-                onClick={() => {}}
+                className="color-primary checker-bg cursor-pointer"
+                title="Primary Color (Click to edit)"
+                onClick={() => primaryColorInputRef.current?.click()}
               >
                 <div
                   className="w-full h-full rounded-md"
                   style={{ backgroundColor: primaryColor }}
                 />
+                <input
+                  ref={primaryColorInputRef}
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="sr-only"
+                />
               </div>
               <div
-                className="color-secondary checker-bg"
-                title="Secondary Color (Right Click)"
-                onClick={() => {}}
+                className="color-secondary checker-bg cursor-pointer"
+                title="Secondary Color (Click to edit)"
+                onClick={() => secondaryColorInputRef.current?.click()}
               >
                 <div
                   className="w-full h-full rounded-md"
                   style={{ backgroundColor: secondaryColor }}
+                />
+                <input
+                  ref={secondaryColorInputRef}
+                  type="color"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="sr-only"
                 />
               </div>
             </div>
@@ -348,17 +369,17 @@ export function ColorPanel() {
               <input
                 type="range"
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                min={0}
+                min={1}
                 max={100}
-                value={100}
-                onChange={() => {}}
+                value={brushOpacity}
+                onChange={(e) => setBrushOpacity(parseInt(e.target.value))}
               />
               <div
                 className="absolute top-0 w-2 h-full bg-white border border-gray-800 rounded-full pointer-events-none shadow-sm"
-                style={{ left: 'calc(100% - 8px)' }}
+                style={{ left: `calc(${brushOpacity}% - 4px)` }}
               />
             </div>
-            <span className="text-pix-xs w-12 text-right font-mono">100 %</span>
+            <span className="text-pix-xs w-12 text-right font-mono">{brushOpacity} %</span>
           </div>
         </div>
       ) : activeTab === 'swatches' ? (

@@ -69,9 +69,18 @@ export function StartupDialog({ open, onOpenChange }: StartupDialogProps) {
     setFillColor("#00000000")
   }
 
+  const handleSkip = () => {
+    // Create a default 64x64 canvas
+    resetLayerCanvasManager(64, 64)
+    newProject(64, 64, "#00000000")
+    setProjectName("Untitled")
+    history.clear()
+    onOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-[450px]" hideCloseButton>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <span className="text-2xl">🎨</span>
@@ -170,6 +179,12 @@ export function StartupDialog({ open, onOpenChange }: StartupDialogProps) {
         </div>
 
         <DialogFooter>
+          <button
+            className="btn py-2 px-4"
+            onClick={handleSkip}
+          >
+            Skip (64x64)
+          </button>
           <button
             className="btn bg-pix-accent text-white py-2 px-6 text-base"
             onClick={handleCreate}
