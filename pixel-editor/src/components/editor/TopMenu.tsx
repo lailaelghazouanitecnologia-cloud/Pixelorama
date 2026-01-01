@@ -137,7 +137,7 @@ export function TopMenu() {
                 <MenubarItem onClick={handleExportJPEG}>JPEG</MenubarItem>
                 <MenubarItem>WebP</MenubarItem>
                 <MenubarSeparator className="separator" />
-                <MenubarItem>Spritesheet...</MenubarItem>
+                <MenubarItem onClick={() => openDialog('spritesheet')}>Spritesheet...</MenubarItem>
                 <MenubarItem>GIF Animation...</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>

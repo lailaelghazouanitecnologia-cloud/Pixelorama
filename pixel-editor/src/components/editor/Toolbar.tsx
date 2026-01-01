@@ -126,16 +126,12 @@ export function Toolbar() {
           label="Select by Color"
           shortcut="U"
         />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="tool-button" disabled>
-              <PenTool className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="tooltip">
-            <p>Lasso <span className="text-pix-text-muted ml-2">Q</span></p>
-          </TooltipContent>
-        </Tooltip>
+        <ToolButton
+          tool="lasso"
+          icon={<PenTool className="w-4 h-4" />}
+          label="Lasso"
+          shortcut="Q"
+        />
 
         <ToolSeparator />
 

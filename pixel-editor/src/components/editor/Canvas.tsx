@@ -37,6 +37,7 @@ import "@/tools/selection/RectSelect"
 import "@/tools/selection/EllipseSelect"
 import "@/tools/selection/MagicWand"
 import "@/tools/selection/ColorSelect"
+import "@/tools/selection/Lasso"
 
 interface Point {
   x: number

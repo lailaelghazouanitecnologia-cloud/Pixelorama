@@ -23,6 +23,7 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   resizeCanvas: lazy(() => import('./ResizeCanvasDialog').then(m => ({ default: m.ResizeCanvasDialog }))),
   effects: lazy(() => import('./EffectsDialog').then(m => ({ default: m.EffectsDialog }))),
   animationTags: lazy(() => import('./AnimationTagsDialog').then(m => ({ default: m.AnimationTagsDialog }))),
+  spritesheet: lazy(() => import('./SpritesheetDialog').then(m => ({ default: m.SpritesheetDialog }))),
   onionSkin: lazy(() => import('./OnionSkinDialog').then(m => ({ default: m.OnionSkinDialog }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),
   preferences: lazy(() => import('./PreferencesDialog').then(m => ({ default: m.PreferencesDialog }))),
