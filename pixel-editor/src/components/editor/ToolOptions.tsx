@@ -4,11 +4,13 @@
  */
 
 import { useEditorStore } from "@/store/editor-store"
+import { useToolsStore } from "@/store/tools-store"
 import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 
 export function ToolOptions() {
+  // Tool-specific settings from tools-store
   const {
     brushSize,
     setBrushSize,
@@ -38,11 +40,15 @@ export function ToolOptions() {
     setSprayDensity,
     sprayRadius,
     setSprayRadius,
+    currentTool,
+  } = useToolsStore()
+
+  // UI settings from editor-store
+  const {
     showGrid,
     toggleGrid,
     snapToGrid,
     toggleSnapToGrid,
-    currentTool,
     canUndo,
     canRedo,
   } = useEditorStore()

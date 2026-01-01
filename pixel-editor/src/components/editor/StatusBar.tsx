@@ -1,4 +1,5 @@
 import { useEditorStore } from "@/store/editor-store"
+import { useToolsStore, TOOL_REGISTRY } from "@/store/tools-store"
 import { Separator } from "@/components/ui/separator"
 
 export function StatusBar() {
@@ -6,29 +7,19 @@ export function StatusBar() {
     width,
     height,
     zoom,
-    currentTool,
-    brushSize,
     primaryColor,
   } = useEditorStore()
 
-  const toolNames: Record<string, string> = {
-    pencil: "Pencil",
-    eraser: "Eraser",
-    bucket: "Fill",
-    picker: "Color Picker",
-    line: "Line",
-    rect: "Rectangle",
-    ellipse: "Ellipse",
-    select: "Select",
-    move: "Move",
-    zoom: "Zoom",
-  }
+  const { currentTool, brushSize } = useToolsStore()
+
+  // Get display name from tool registry
+  const toolDisplayName = TOOL_REGISTRY[currentTool]?.displayName || currentTool
 
   return (
     <div className="h-6 bg-card border-t border-border flex items-center px-3 text-[10px] text-muted-foreground gap-4">
       <div className="flex items-center gap-2">
         <span>Tool:</span>
-        <span className="text-foreground">{toolNames[currentTool] || currentTool}</span>
+        <span className="text-foreground">{toolDisplayName}</span>
       </div>
 
       <Separator orientation="vertical" className="h-3" />

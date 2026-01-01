@@ -3,7 +3,8 @@
  * Based on Pixelorama's input handling
  */
 
-import { useEditorStore, type ToolName } from '../store/editor-store'
+import { useEditorStore } from '../store/editor-store'
+import { useToolsStore, TOOL_SHORTCUTS as TOOL_SHORTCUT_MAP, type ToolName } from '../store/tools-store'
 import { getHistory } from './history'
 
 export interface ShortcutAction {
@@ -15,21 +16,8 @@ export interface ShortcutAction {
   description: string
 }
 
-// Tool shortcuts mapping
-export const TOOL_SHORTCUTS: Record<string, ToolName> = {
-  'b': 'pencil',
-  'e': 'eraser',
-  'g': 'bucket',
-  'l': 'line',
-  'r': 'rectangle',
-  'o': 'ellipse',
-  'm': 'rectSelect',
-  'w': 'magicWand',
-  'i': 'colorPicker',
-  'v': 'move',
-  'h': 'pan',
-  'z': 'zoom',
-}
+// Re-export tool shortcuts from tools-store for backwards compatibility
+export const TOOL_SHORTCUTS = TOOL_SHORTCUT_MAP
 
 // Get all shortcuts
 export function getShortcuts(): ShortcutAction[] {
@@ -196,7 +184,7 @@ export function initKeyboardShortcuts(): () => void {
       return
     }
 
-    const store = useEditorStore.getState()
+    const toolsStore = useToolsStore.getState()
     const key = e.key.toLowerCase()
 
     // Check for tool shortcuts (single key, no modifiers)
@@ -204,7 +192,7 @@ export function initKeyboardShortcuts(): () => void {
       const tool = TOOL_SHORTCUTS[key]
       if (tool) {
         e.preventDefault()
-        store.setTool(tool)
+        toolsStore.setTool(tool)
         return
       }
     }

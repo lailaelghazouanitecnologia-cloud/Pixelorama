@@ -6,6 +6,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react"
 import { useEditorStore } from "@/store/editor-store"
+import { useToolsStore } from "@/store/tools-store"
 import { getHistory, captureCanvasState } from "@/core/history"
 import { ToolManager } from "@/tools/ToolManager"
 import { bresenhamLine } from "@/lib/drawing"
@@ -60,6 +61,7 @@ export function Canvas() {
     return unsubscribe
   }, [])
 
+  // Canvas/view state from editor-store
   const {
     width,
     height,
@@ -69,8 +71,6 @@ export function Canvas() {
     pan,
     zoomIn,
     zoomOut,
-    currentTool,
-    brushSize,
     primaryColor,
     secondaryColor,
     showGrid,
@@ -79,8 +79,10 @@ export function Canvas() {
     frames,
     currentFrameIndex,
     history,
-    filled,
   } = useEditorStore()
+
+  // Tool state from tools-store
+  const { currentTool, brushSize, filled } = useToolsStore()
 
   // Selection management
   const {

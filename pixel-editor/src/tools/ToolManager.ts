@@ -13,6 +13,7 @@ import { ToolRegistry } from './registry'
 import type { BaseTool } from './base/BaseTool'
 import type { Point, DrawingContext, CanvasMouseEvent } from '@/core/types'
 import { useEditorStore } from '@/store/editor-store'
+import { useToolsStore } from '@/store/tools-store'
 import { bresenhamLine } from '@/lib/drawing'
 
 // ============================================================================
@@ -102,8 +103,8 @@ class ToolManagerClass {
     button: 'left' | 'right',
     ctx: DrawingContext
   ): void {
-    const store = useEditorStore.getState()
-    const toolName = store.currentTool
+    const toolsStore = useToolsStore.getState()
+    const toolName = toolsStore.currentTool
 
     // Get tool instance
     this.currentTool = ToolRegistry.getInstance(toolName)
@@ -143,8 +144,8 @@ class ToolManagerClass {
   ): void {
     if (!this.state.isDrawing || !this.currentTool) return
 
-    const store = useEditorStore.getState()
-    const toolName = store.currentTool
+    const toolsStore = useToolsStore.getState()
+    const toolName = toolsStore.currentTool
     const options = this.getDrawingOptions(button)
     const lastPos = this.state.lastPosition
 
@@ -168,8 +169,8 @@ class ToolManagerClass {
   ): void {
     if (!this.state.isDrawing) return
 
-    const store = useEditorStore.getState()
-    const toolName = store.currentTool
+    const toolsStore = useToolsStore.getState()
+    const toolName = toolsStore.currentTool
     const options = this.getDrawingOptions(button)
 
     // Execute tool-specific end
@@ -584,21 +585,24 @@ class ToolManagerClass {
   // ============================================================================
 
   private getDrawingOptions(button: 'left' | 'right'): DrawingOptions {
-    const store = useEditorStore.getState()
+    const editorStore = useEditorStore.getState()
+    const toolsStore = useToolsStore.getState()
     return {
-      color: button === 'left' ? store.primaryColor : store.secondaryColor,
-      brushSize: store.brushSize,
-      mirrorH: store.mirrorH,
-      mirrorV: store.mirrorV,
-      overwrite: store.overwrite,
-      spacingMode: store.spacingMode,
-      spacing: store.spacing,
-      filled: store.filled,
-      tolerance: store.bucketTolerance,
-      shadingMode: store.shadingMode,
-      shadingAmount: store.shadingAmount,
-      sprayDensity: store.sprayDensity,
-      sprayRadius: store.sprayRadius,
+      // Colors from editor-store
+      color: button === 'left' ? editorStore.primaryColor : editorStore.secondaryColor,
+      // Tool settings from tools-store
+      brushSize: toolsStore.brushSize,
+      mirrorH: toolsStore.mirrorH,
+      mirrorV: toolsStore.mirrorV,
+      overwrite: toolsStore.overwrite,
+      spacingMode: toolsStore.spacingMode,
+      spacing: toolsStore.spacing,
+      filled: toolsStore.filled,
+      tolerance: toolsStore.bucketTolerance,
+      shadingMode: toolsStore.shadingMode,
+      shadingAmount: toolsStore.shadingAmount,
+      sprayDensity: toolsStore.sprayDensity,
+      sprayRadius: toolsStore.sprayRadius,
     }
   }
 

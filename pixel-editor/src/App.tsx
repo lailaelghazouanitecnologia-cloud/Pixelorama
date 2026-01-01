@@ -9,10 +9,12 @@ import { StatusBar } from "@/components/editor/StatusBar"
 import { StartupDialog } from "@/components/dialogs/StartupDialog"
 import { DialogManager } from "@/components/dialogs/DialogManager"
 import { useEditorStore } from "@/store/editor-store"
+import { useToolsStore, TOOL_SHORTCUTS } from "@/store/tools-store"
 import { useEffect, useState } from "react"
 
 function App() {
-  const { setTool, setZoom, setPrimaryColor, setSecondaryColor } = useEditorStore()
+  const { setPrimaryColor, setSecondaryColor } = useEditorStore()
+  const { setTool } = useToolsStore()
   const [showStartup, setShowStartup] = useState(true)
 
   // Keyboard shortcuts
@@ -23,28 +25,11 @@ function App() {
         return
       }
 
-      // Tool shortcuts (must match ToolName type)
-      const toolShortcuts: Record<string, Parameters<typeof setTool>[0]> = {
-        b: "pencil",
-        e: "eraser",
-        g: "bucket",
-        i: "colorPicker",
-        l: "line",
-        r: "rectangle",
-        o: "ellipse",
-        u: "shading",
-        s: "spray",
-        m: "rectSelect",
-        j: "ellipseSelect",
-        w: "magicWand",
-        v: "move",
-        h: "pan",
-        z: "zoom",
-      }
-
-      if (toolShortcuts[e.key.toLowerCase()]) {
+      // Tool shortcuts from tools-store registry
+      const toolName = TOOL_SHORTCUTS[e.key.toLowerCase()]
+      if (toolName) {
         e.preventDefault()
-        setTool(toolShortcuts[e.key.toLowerCase()])
+        setTool(toolName)
         return
       }
 
@@ -74,7 +59,7 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [setTool, setZoom, setPrimaryColor, setSecondaryColor])
+  }, [setTool, setPrimaryColor, setSecondaryColor])
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">

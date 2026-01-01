@@ -19,7 +19,7 @@ import {
   PenTool,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
-import { useEditorStore, type ToolName } from "@/store/editor-store"
+import { useToolsStore, type ToolName } from "@/store/tools-store"
 import { cn } from "@/lib/utils"
 
 interface ToolButtonProps {
@@ -31,7 +31,7 @@ interface ToolButtonProps {
 }
 
 function ToolButton({ tool, icon, label, shortcut, disabled }: ToolButtonProps) {
-  const { currentTool, setTool } = useEditorStore()
+  const { currentTool, setTool } = useToolsStore()
   const isActive = currentTool === tool
 
   return (
