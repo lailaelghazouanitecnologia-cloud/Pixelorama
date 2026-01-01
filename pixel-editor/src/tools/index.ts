@@ -12,6 +12,7 @@ export * from './design/CurveTool'
 export * from './design/RectangleTool'
 export * from './design/EllipseTool'
 export * from './design/TextTool'
+export * from './design/IsometricBoxTool'
 
 // Utility Tools
 export * from './utility/Pan'
@@ -27,6 +28,7 @@ export * from './selection/Lasso'
 export * from './selection/PolygonSelect'
 export * from './selection/MagicWand'
 export * from './selection/ColorSelect'
+export * from './selection/PaintSelect'
 
 // Re-export registry
 export { ToolRegistry, defineToolWithFactory } from './registry'

@@ -6,14 +6,16 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import type { DitherPattern } from '@/core/dithering'
+import type { Brush } from '@/core/brushes'
+import { BrushType } from '@/core/brushes'
 
 // Tool categories matching Pixelorama
 export type ToolCategory = 'design' | 'selection' | 'utility'
 
 // Tool names
 export type ToolName =
-  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'curve' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
-  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'polygonSelect' | 'magicWand' | 'colorSelect'           // Selection tools
+  | 'pencil' | 'eraser' | 'bucket' | 'line' | 'curve' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient' | 'isometricBox'  // Design tools
+  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'polygonSelect' | 'magicWand' | 'colorSelect' | 'paintSelect'  // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'text'                                          // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
@@ -41,6 +43,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'D' },
   spray: { name: 'spray', displayName: 'Spray', icon: 'spray', category: 'design', shortcut: 'S' },
   gradient: { name: 'gradient', displayName: 'Gradient', icon: 'gradient', category: 'design', shortcut: 'F' },
+  isometricBox: { name: 'isometricBox', displayName: 'Isometric Box', icon: 'box', category: 'design', shortcut: 'X' },
 
   // Selection tools
   rectSelect: { name: 'rectSelect', displayName: 'Rectangle Select', icon: 'rectSelect', category: 'selection', shortcut: 'M' },
@@ -49,6 +52,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   polygonSelect: { name: 'polygonSelect', displayName: 'Polygon Select', icon: 'polygonSelect', category: 'selection', shortcut: 'P' },
   magicWand: { name: 'magicWand', displayName: 'Magic Wand', icon: 'magicWand', category: 'selection', shortcut: 'W' },
   colorSelect: { name: 'colorSelect', displayName: 'Select by Color', icon: 'colorSelect', category: 'selection', shortcut: 'U' },
+  paintSelect: { name: 'paintSelect', displayName: 'Paint Select', icon: 'paintbrush', category: 'selection', shortcut: 'A' },
 
   // Utility tools
   colorPicker: { name: 'colorPicker', displayName: 'Color Picker', icon: 'colorPicker', category: 'utility', shortcut: 'I' },
@@ -74,6 +78,8 @@ export interface ToolsState {
   brushOpacity: number
   pixelPerfect: boolean
   overwrite: boolean
+  currentBrushType: BrushType
+  currentBrushId: string | null
 
   // Spacing
   spacingMode: boolean
@@ -92,6 +98,8 @@ export interface ToolsState {
   // Mirror settings
   mirrorH: boolean
   mirrorV: boolean
+  mirrorDiagonalXY: boolean  // Diagonal mirror (top-left to bottom-right)
+  mirrorDiagonalXnY: boolean // Anti-diagonal mirror (top-right to bottom-left)
 
   // Spray settings
   sprayDensity: number
@@ -130,6 +138,8 @@ export interface ToolsState {
   setShadingAmount: (amount: number) => void
   setMirrorH: (enabled: boolean) => void
   setMirrorV: (enabled: boolean) => void
+  setMirrorDiagonalXY: (enabled: boolean) => void
+  setMirrorDiagonalXnY: (enabled: boolean) => void
   setSprayDensity: (density: number) => void
   setSprayRadius: (radius: number) => void
   setDitherPattern: (pattern: DitherPattern) => void
@@ -140,6 +150,8 @@ export interface ToolsState {
   setStabilizerEnabled: (enabled: boolean) => void
   setStabilizerValue: (value: number) => void
   setAlphaLocked: (locked: boolean) => void
+  setCurrentBrushType: (type: BrushType) => void
+  setCurrentBrushId: (id: string | null) => void
 
   // Helpers
   getToolConfig: (tool?: ToolName) => ToolConfig
@@ -159,6 +171,8 @@ export const useToolsStore = create<ToolsState>()(
     brushOpacity: 100,
     pixelPerfect: false,
     overwrite: false,
+    currentBrushType: BrushType.PIXEL,
+    currentBrushId: 'pixel',
 
     // Spacing
     spacingMode: false,
@@ -177,6 +191,8 @@ export const useToolsStore = create<ToolsState>()(
     // Mirror settings
     mirrorH: false,
     mirrorV: false,
+    mirrorDiagonalXY: false,
+    mirrorDiagonalXnY: false,
 
     // Spray settings
     sprayDensity: 5,
@@ -242,6 +258,8 @@ export const useToolsStore = create<ToolsState>()(
 
     setMirrorH: (enabled) => set({ mirrorH: enabled }),
     setMirrorV: (enabled) => set({ mirrorV: enabled }),
+    setMirrorDiagonalXY: (enabled) => set({ mirrorDiagonalXY: enabled }),
+    setMirrorDiagonalXnY: (enabled) => set({ mirrorDiagonalXnY: enabled }),
 
     setSprayDensity: (density) => set({
       sprayDensity: Math.max(1, Math.min(20, density))
@@ -269,6 +287,10 @@ export const useToolsStore = create<ToolsState>()(
 
     setAlphaLocked: (locked) => set({ alphaLocked: locked }),
 
+    setCurrentBrushType: (type) => set({ currentBrushType: type }),
+
+    setCurrentBrushId: (id) => set({ currentBrushId: id }),
+
     // === Helpers ===
 
     getToolConfig: (tool) => {
@@ -282,12 +304,12 @@ export const useToolsStore = create<ToolsState>()(
 
     isDrawingTool: (tool) => {
       const toolName = tool || get().currentTool
-      return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'text'].includes(toolName)
+      return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'text', 'isometricBox'].includes(toolName)
     },
 
     isSelectionTool: (tool) => {
       const toolName = tool || get().currentTool
-      return ['rectSelect', 'ellipseSelect', 'lasso', 'polygonSelect', 'magicWand', 'colorSelect'].includes(toolName)
+      return ['rectSelect', 'ellipseSelect', 'lasso', 'polygonSelect', 'magicWand', 'colorSelect', 'paintSelect'].includes(toolName)
     },
   }))
 )

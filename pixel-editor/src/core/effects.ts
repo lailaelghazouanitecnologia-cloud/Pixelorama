@@ -693,6 +693,378 @@ export function applyRotate180(imageData: ImageData): ImageData {
   return new ImageData(dstData, width, height)
 }
 
+// === COLOR CURVES ===
+
+export interface CurvePoint {
+  input: number  // 0-255
+  output: number // 0-255
+}
+
+/**
+ * Apply color curves adjustment
+ * Curves allow fine-tuned control over brightness across the tonal range
+ */
+export function applyColorCurves(
+  imageData: ImageData,
+  rgbCurve: CurvePoint[],   // Master RGB curve
+  redCurve?: CurvePoint[],
+  greenCurve?: CurvePoint[],
+  blueCurve?: CurvePoint[]
+): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+
+  // Build lookup tables for each channel
+  const rgbLUT = buildCurveLUT(rgbCurve)
+  const redLUT = redCurve ? buildCurveLUT(redCurve) : null
+  const greenLUT = greenCurve ? buildCurveLUT(greenCurve) : null
+  const blueLUT = blueCurve ? buildCurveLUT(blueCurve) : null
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    // Apply master RGB curve first
+    let r = rgbLUT[data[i]]
+    let g = rgbLUT[data[i + 1]]
+    let b = rgbLUT[data[i + 2]]
+
+    // Apply individual channel curves
+    if (redLUT) r = redLUT[r]
+    if (greenLUT) g = greenLUT[g]
+    if (blueLUT) b = blueLUT[b]
+
+    data[i] = r
+    data[i + 1] = g
+    data[i + 2] = b
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+/**
+ * Build a lookup table from curve points using linear interpolation
+ */
+function buildCurveLUT(points: CurvePoint[]): Uint8Array {
+  const lut = new Uint8Array(256)
+
+  if (points.length === 0) {
+    // Identity curve
+    for (let i = 0; i < 256; i++) {
+      lut[i] = i
+    }
+    return lut
+  }
+
+  // Sort points by input
+  const sortedPoints = [...points].sort((a, b) => a.input - b.input)
+
+  // Ensure we have endpoints
+  if (sortedPoints[0].input > 0) {
+    sortedPoints.unshift({ input: 0, output: 0 })
+  }
+  if (sortedPoints[sortedPoints.length - 1].input < 255) {
+    sortedPoints.push({ input: 255, output: 255 })
+  }
+
+  // Build LUT using linear interpolation
+  let pointIndex = 0
+  for (let i = 0; i < 256; i++) {
+    // Find the segment we're in
+    while (pointIndex < sortedPoints.length - 1 && sortedPoints[pointIndex + 1].input < i) {
+      pointIndex++
+    }
+
+    const p1 = sortedPoints[pointIndex]
+    const p2 = sortedPoints[Math.min(pointIndex + 1, sortedPoints.length - 1)]
+
+    if (p1.input === p2.input) {
+      lut[i] = p1.output
+    } else {
+      const t = (i - p1.input) / (p2.input - p1.input)
+      lut[i] = clamp(Math.round(p1.output + t * (p2.output - p1.output)), 0, 255)
+    }
+  }
+
+  return lut
+}
+
+/**
+ * Create preset curve points for common adjustments
+ */
+export function createContrastCurve(amount: number): CurvePoint[] {
+  // amount: -100 to 100
+  const center = 128
+  const scale = 1 + amount / 100
+
+  return [
+    { input: 0, output: clamp(center - (center * scale), 0, 255) },
+    { input: 128, output: 128 },
+    { input: 255, output: clamp(center + ((255 - center) * scale), 0, 255) },
+  ]
+}
+
+export function createBrightnessCurve(amount: number): CurvePoint[] {
+  // amount: -100 to 100
+  const shift = amount * 2.55
+
+  return [
+    { input: 0, output: clamp(shift, 0, 255) },
+    { input: 255, output: clamp(255 + shift, 0, 255) },
+  ]
+}
+
+export function createSCurve(strength: number = 0.5): CurvePoint[] {
+  // Creates an S-curve for contrast enhancement
+  const points: CurvePoint[] = []
+
+  for (let i = 0; i <= 255; i += 32) {
+    const normalized = i / 255
+    // S-curve formula
+    const curved = 1 / (1 + Math.exp(-((normalized - 0.5) * 10 * strength)))
+    points.push({ input: i, output: Math.round(curved * 255) })
+  }
+
+  return points
+}
+
+// === OFFSET AND SCALE ===
+
+/**
+ * Apply offset (move) and scale to layer content
+ */
+export function applyOffsetScale(
+  imageData: ImageData,
+  offsetX: number,
+  offsetY: number,
+  scaleX: number = 1,
+  scaleY: number = 1,
+  wrapAround: boolean = false,
+  interpolation: 'nearest' | 'bilinear' = 'nearest'
+): ImageData {
+  const width = imageData.width
+  const height = imageData.height
+  const srcData = imageData.data
+  const dstData = new Uint8ClampedArray(srcData.length)
+
+  // Calculate new dimensions if scaling
+  const centerX = width / 2
+  const centerY = height / 2
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // Calculate source position (inverse transform)
+      let srcX = (x - centerX) / scaleX + centerX - offsetX
+      let srcY = (y - centerY) / scaleY + centerY - offsetY
+
+      // Handle wrap-around or clamp
+      if (wrapAround) {
+        srcX = ((srcX % width) + width) % width
+        srcY = ((srcY % height) + height) % height
+      }
+
+      const dstIdx = (y * width + x) * 4
+
+      if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) {
+        // Out of bounds - transparent
+        dstData[dstIdx] = 0
+        dstData[dstIdx + 1] = 0
+        dstData[dstIdx + 2] = 0
+        dstData[dstIdx + 3] = 0
+        continue
+      }
+
+      if (interpolation === 'nearest') {
+        // Nearest neighbor interpolation
+        const srcIdx = (Math.floor(srcY) * width + Math.floor(srcX)) * 4
+        dstData[dstIdx] = srcData[srcIdx]
+        dstData[dstIdx + 1] = srcData[srcIdx + 1]
+        dstData[dstIdx + 2] = srcData[srcIdx + 2]
+        dstData[dstIdx + 3] = srcData[srcIdx + 3]
+      } else {
+        // Bilinear interpolation
+        const x0 = Math.floor(srcX)
+        const y0 = Math.floor(srcY)
+        const x1 = Math.min(x0 + 1, width - 1)
+        const y1 = Math.min(y0 + 1, height - 1)
+
+        const fx = srcX - x0
+        const fy = srcY - y0
+
+        const idx00 = (y0 * width + x0) * 4
+        const idx10 = (y0 * width + x1) * 4
+        const idx01 = (y1 * width + x0) * 4
+        const idx11 = (y1 * width + x1) * 4
+
+        for (let c = 0; c < 4; c++) {
+          const v00 = srcData[idx00 + c]
+          const v10 = srcData[idx10 + c]
+          const v01 = srcData[idx01 + c]
+          const v11 = srcData[idx11 + c]
+
+          const top = v00 + fx * (v10 - v00)
+          const bottom = v01 + fx * (v11 - v01)
+          dstData[dstIdx + c] = Math.round(top + fy * (bottom - top))
+        }
+      }
+    }
+  }
+
+  return new ImageData(dstData, width, height)
+}
+
+/**
+ * Apply just offset (simpler version)
+ */
+export function applyOffset(
+  imageData: ImageData,
+  offsetX: number,
+  offsetY: number,
+  wrapAround: boolean = true
+): ImageData {
+  return applyOffsetScale(imageData, offsetX, offsetY, 1, 1, wrapAround, 'nearest')
+}
+
+/**
+ * Apply just scale centered
+ */
+export function applyScale(
+  imageData: ImageData,
+  scaleX: number,
+  scaleY: number,
+  interpolation: 'nearest' | 'bilinear' = 'nearest'
+): ImageData {
+  return applyOffsetScale(imageData, 0, 0, scaleX, scaleY, false, interpolation)
+}
+
+// === ADDITIONAL EFFECTS ===
+
+/**
+ * Apply levels adjustment (like Photoshop levels)
+ */
+export function applyLevels(
+  imageData: ImageData,
+  inputBlack: number = 0,    // 0-255
+  inputWhite: number = 255,  // 0-255
+  gamma: number = 1.0,       // 0.1-10
+  outputBlack: number = 0,   // 0-255
+  outputWhite: number = 255  // 0-255
+): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+
+  // Build lookup table
+  const lut = new Uint8Array(256)
+  const inputRange = inputWhite - inputBlack
+  const outputRange = outputWhite - outputBlack
+
+  for (let i = 0; i < 256; i++) {
+    // Normalize to input range
+    let value = (i - inputBlack) / inputRange
+    value = clamp(value, 0, 1)
+
+    // Apply gamma
+    value = Math.pow(value, 1 / gamma)
+
+    // Map to output range
+    value = outputBlack + value * outputRange
+
+    lut[i] = clamp(Math.round(value), 0, 255)
+  }
+
+  // Apply to image
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    data[i] = lut[data[i]]
+    data[i + 1] = lut[data[i + 1]]
+    data[i + 2] = lut[data[i + 2]]
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+/**
+ * Apply vibrance (smart saturation that preserves skin tones)
+ */
+export function applyVibrance(imageData: ImageData, amount: number = 50): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+  const factor = amount / 100
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    const r = data[i] / 255
+    const g = data[i + 1] / 255
+    const b = data[i + 2] / 255
+
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const saturation = max === 0 ? 0 : (max - min) / max
+
+    // Apply more saturation to less saturated pixels
+    const adjustedFactor = factor * (1 - saturation)
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b
+
+    data[i] = clamp(Math.round((r + (r - gray) * adjustedFactor) * 255), 0, 255)
+    data[i + 1] = clamp(Math.round((g + (g - gray) * adjustedFactor) * 255), 0, 255)
+    data[i + 2] = clamp(Math.round((b + (b - gray) * adjustedFactor) * 255), 0, 255)
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+/**
+ * Apply color balance (adjust shadows, midtones, highlights independently)
+ */
+export function applyColorBalance(
+  imageData: ImageData,
+  shadows: { cyan: number; magenta: number; yellow: number },    // -100 to 100
+  midtones: { cyan: number; magenta: number; yellow: number },   // -100 to 100
+  highlights: { cyan: number; magenta: number; yellow: number }  // -100 to 100
+): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+
+    // Calculate luminance to determine tonal range
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+    // Weight factors for shadows, midtones, highlights
+    const shadowWeight = 1 - Math.min(lum / 85, 1)
+    const highlightWeight = Math.max((lum - 170) / 85, 0)
+    const midtoneWeight = 1 - shadowWeight - highlightWeight
+
+    // Calculate adjustments
+    const cyanRedAdj = (
+      shadows.cyan * shadowWeight +
+      midtones.cyan * midtoneWeight +
+      highlights.cyan * highlightWeight
+    ) * 2.55
+
+    const magentaGreenAdj = (
+      shadows.magenta * shadowWeight +
+      midtones.magenta * midtoneWeight +
+      highlights.magenta * highlightWeight
+    ) * 2.55
+
+    const yellowBlueAdj = (
+      shadows.yellow * shadowWeight +
+      midtones.yellow * midtoneWeight +
+      highlights.yellow * highlightWeight
+    ) * 2.55
+
+    // Apply (cyan/red is opposite, etc.)
+    data[i] = clamp(r - cyanRedAdj, 0, 255)
+    data[i + 1] = clamp(g - magentaGreenAdj, 0, 255)
+    data[i + 2] = clamp(b - yellowBlueAdj, 0, 255)
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
 // === EFFECT REGISTRY ===
 
 export type EffectType =
@@ -705,12 +1077,18 @@ export type EffectType =
   | 'sepia'
   | 'threshold'
   | 'gradientMap'
+  | 'levels'
+  | 'vibrance'
+  | 'colorBalance'
+  | 'colorCurves'
   | 'gaussianBlur'
   | 'sharpen'
   | 'pixelize'
   | 'edgeDetect'
   | 'outline'
   | 'dropShadow'
+  | 'offset'
+  | 'scale'
   | 'flipHorizontal'
   | 'flipVertical'
   | 'rotate90CW'
@@ -810,6 +1188,51 @@ export const EFFECTS: EffectDefinition[] = [
     ]
   },
   {
+    id: 'levels',
+    name: 'Levels',
+    category: 'color',
+    params: [
+      { name: 'Input Black', key: 'inputBlack', type: 'number', min: 0, max: 255, step: 1, default: 0 },
+      { name: 'Input White', key: 'inputWhite', type: 'number', min: 0, max: 255, step: 1, default: 255 },
+      { name: 'Gamma', key: 'gamma', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1.0 },
+      { name: 'Output Black', key: 'outputBlack', type: 'number', min: 0, max: 255, step: 1, default: 0 },
+      { name: 'Output White', key: 'outputWhite', type: 'number', min: 0, max: 255, step: 1, default: 255 },
+    ]
+  },
+  {
+    id: 'vibrance',
+    name: 'Vibrance',
+    category: 'color',
+    params: [
+      { name: 'Amount', key: 'amount', type: 'number', min: -100, max: 100, step: 1, default: 50 },
+    ]
+  },
+  {
+    id: 'colorBalance',
+    name: 'Color Balance',
+    category: 'color',
+    params: [
+      { name: 'Shadows Cyan/Red', key: 'shadowsCyan', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Shadows Magenta/Green', key: 'shadowsMagenta', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Shadows Yellow/Blue', key: 'shadowsYellow', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Midtones Cyan/Red', key: 'midtonesCyan', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Midtones Magenta/Green', key: 'midtonesMagenta', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Midtones Yellow/Blue', key: 'midtonesYellow', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Highlights Cyan/Red', key: 'highlightsCyan', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Highlights Magenta/Green', key: 'highlightsMagenta', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+      { name: 'Highlights Yellow/Blue', key: 'highlightsYellow', type: 'number', min: -100, max: 100, step: 1, default: 0 },
+    ]
+  },
+  {
+    id: 'colorCurves',
+    name: 'Color Curves',
+    category: 'color',
+    params: [
+      // Curves are handled differently - stored as arrays of points
+      // UI will need to handle curve editing
+    ]
+  },
+  {
     id: 'gaussianBlur',
     name: 'Blur',
     category: 'blur',
@@ -858,6 +1281,26 @@ export const EFFECTS: EffectDefinition[] = [
       { name: 'Offset X', key: 'offsetX', type: 'number', min: -20, max: 20, step: 1, default: 2 },
       { name: 'Offset Y', key: 'offsetY', type: 'number', min: -20, max: 20, step: 1, default: 2 },
       { name: 'Opacity', key: 'opacity', type: 'number', min: 0, max: 100, step: 1, default: 50 },
+    ]
+  },
+  {
+    id: 'offset',
+    name: 'Offset',
+    category: 'transform',
+    params: [
+      { name: 'Offset X', key: 'offsetX', type: 'number', min: -1000, max: 1000, step: 1, default: 0 },
+      { name: 'Offset Y', key: 'offsetY', type: 'number', min: -1000, max: 1000, step: 1, default: 0 },
+      { name: 'Wrap Around', key: 'wrapAround', type: 'boolean', default: true },
+    ]
+  },
+  {
+    id: 'scale',
+    name: 'Scale',
+    category: 'transform',
+    params: [
+      { name: 'Scale X', key: 'scaleX', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1 },
+      { name: 'Scale Y', key: 'scaleY', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1 },
+      { name: 'Interpolation', key: 'interpolation', type: 'string', default: 'nearest' },
     ]
   },
   {
@@ -957,6 +1400,59 @@ export function applyEffect(
         (params.offsetX as number) ?? 2,
         (params.offsetY as number) ?? 2,
         (params.opacity as number) ?? 50
+      )
+    case 'levels':
+      return applyLevels(
+        imageData,
+        (params.inputBlack as number) ?? 0,
+        (params.inputWhite as number) ?? 255,
+        (params.gamma as number) ?? 1.0,
+        (params.outputBlack as number) ?? 0,
+        (params.outputWhite as number) ?? 255
+      )
+    case 'vibrance':
+      return applyVibrance(imageData, (params.amount as number) ?? 50)
+    case 'colorBalance':
+      return applyColorBalance(
+        imageData,
+        {
+          cyan: (params.shadowsCyan as number) ?? 0,
+          magenta: (params.shadowsMagenta as number) ?? 0,
+          yellow: (params.shadowsYellow as number) ?? 0,
+        },
+        {
+          cyan: (params.midtonesCyan as number) ?? 0,
+          magenta: (params.midtonesMagenta as number) ?? 0,
+          yellow: (params.midtonesYellow as number) ?? 0,
+        },
+        {
+          cyan: (params.highlightsCyan as number) ?? 0,
+          magenta: (params.highlightsMagenta as number) ?? 0,
+          yellow: (params.highlightsYellow as number) ?? 0,
+        }
+      )
+    case 'colorCurves':
+      // Color curves need special handling - params should contain curve arrays
+      return applyColorCurves(
+        imageData,
+        (params.rgbCurve as CurvePoint[]) ?? [],
+        (params.redCurve as CurvePoint[]) ?? undefined,
+        (params.greenCurve as CurvePoint[]) ?? undefined,
+        (params.blueCurve as CurvePoint[]) ?? undefined
+      )
+    case 'offset':
+      return applyOffset(
+        imageData,
+        (params.offsetX as number) ?? 0,
+        (params.offsetY as number) ?? 0,
+        (params.wrapAround as boolean) ?? true
+      )
+    case 'scale':
+      return applyScale(
+        imageData,
+        (params.scaleX as number) ?? 1,
+        (params.scaleY as number) ?? 1,
+        ((params.interpolation as string) ?? 'nearest') as 'nearest' | 'bilinear'
       )
     case 'flipHorizontal':
       return applyFlipHorizontal(imageData)
