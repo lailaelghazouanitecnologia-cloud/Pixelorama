@@ -22,14 +22,38 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const BLEND_MODES: { value: BlendMode; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'multiply', label: 'Multiply' },
-  { value: 'screen', label: 'Screen' },
-  { value: 'overlay', label: 'Overlay' },
-  { value: 'darken', label: 'Darken' },
-  { value: 'lighten', label: 'Lighten' },
+// All 20 blend modes with groupings (matching Pixelorama's BaseLayer.gd)
+const BLEND_MODES: { value: BlendMode; label: string; group: string }[] = [
+  // Normal
+  { value: 'normal', label: 'Normal', group: 'Normal' },
+  // Darken group
+  { value: 'darken', label: 'Darken', group: 'Darken' },
+  { value: 'multiply', label: 'Multiply', group: 'Darken' },
+  { value: 'color-burn', label: 'Color Burn', group: 'Darken' },
+  { value: 'linear-burn', label: 'Linear Burn', group: 'Darken' },
+  // Lighten group
+  { value: 'lighten', label: 'Lighten', group: 'Lighten' },
+  { value: 'screen', label: 'Screen', group: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge', group: 'Lighten' },
+  { value: 'linear-dodge', label: 'Add (Linear Dodge)', group: 'Lighten' },
+  // Contrast group
+  { value: 'overlay', label: 'Overlay', group: 'Contrast' },
+  { value: 'soft-light', label: 'Soft Light', group: 'Contrast' },
+  { value: 'hard-light', label: 'Hard Light', group: 'Contrast' },
+  // Inversion group
+  { value: 'difference', label: 'Difference', group: 'Inversion' },
+  { value: 'exclusion', label: 'Exclusion', group: 'Inversion' },
+  { value: 'subtract', label: 'Subtract', group: 'Inversion' },
+  { value: 'divide', label: 'Divide', group: 'Inversion' },
+  // Component group (HSL modes)
+  { value: 'hue', label: 'Hue', group: 'Component' },
+  { value: 'saturation', label: 'Saturation', group: 'Component' },
+  { value: 'color', label: 'Color', group: 'Component' },
+  { value: 'luminosity', label: 'Luminosity', group: 'Component' },
 ]
+
+// Group blend modes for optgroup rendering
+const BLEND_MODE_GROUPS = ['Normal', 'Darken', 'Lighten', 'Contrast', 'Inversion', 'Component'] as const
 
 export function LayersPanel() {
   const {
@@ -111,10 +135,14 @@ export function LayersPanel() {
                 value={currentLayer?.blendMode || 'normal'}
                 onChange={(e) => setLayerBlendMode(currentLayerIndex, e.target.value as BlendMode)}
               >
-                {BLEND_MODES.map((mode) => (
-                  <option key={mode.value} value={mode.value}>
-                    {mode.label}
-                  </option>
+                {BLEND_MODE_GROUPS.map((group) => (
+                  <optgroup key={group} label={group}>
+                    {BLEND_MODES.filter((mode) => mode.group === group).map((mode) => (
+                      <option key={mode.value} value={mode.value}>
+                        {mode.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

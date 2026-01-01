@@ -3,6 +3,7 @@
  * Based on Pixelorama's layer architecture
  */
 
+// All 20 blend modes matching Pixelorama's BaseLayer.gd
 export type BlendMode =
   | 'normal'
   | 'multiply'
@@ -11,11 +12,49 @@ export type BlendMode =
   | 'darken'
   | 'lighten'
   | 'color-dodge'
+  | 'linear-dodge' // Add
   | 'color-burn'
+  | 'linear-burn'
   | 'hard-light'
   | 'soft-light'
   | 'difference'
   | 'exclusion'
+  | 'subtract'
+  | 'divide'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity'
+
+// Blend mode display names and groupings
+export const BLEND_MODES: { value: BlendMode; label: string; group: string }[] = [
+  // Normal
+  { value: 'normal', label: 'Normal', group: 'Normal' },
+  // Darken
+  { value: 'darken', label: 'Darken', group: 'Darken' },
+  { value: 'multiply', label: 'Multiply', group: 'Darken' },
+  { value: 'color-burn', label: 'Color Burn', group: 'Darken' },
+  { value: 'linear-burn', label: 'Linear Burn', group: 'Darken' },
+  // Lighten
+  { value: 'lighten', label: 'Lighten', group: 'Lighten' },
+  { value: 'screen', label: 'Screen', group: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge', group: 'Lighten' },
+  { value: 'linear-dodge', label: 'Add (Linear Dodge)', group: 'Lighten' },
+  // Contrast
+  { value: 'overlay', label: 'Overlay', group: 'Contrast' },
+  { value: 'soft-light', label: 'Soft Light', group: 'Contrast' },
+  { value: 'hard-light', label: 'Hard Light', group: 'Contrast' },
+  // Inversion
+  { value: 'difference', label: 'Difference', group: 'Inversion' },
+  { value: 'exclusion', label: 'Exclusion', group: 'Inversion' },
+  { value: 'subtract', label: 'Subtract', group: 'Inversion' },
+  { value: 'divide', label: 'Divide', group: 'Inversion' },
+  // Component
+  { value: 'hue', label: 'Hue', group: 'Component' },
+  { value: 'saturation', label: 'Saturation', group: 'Component' },
+  { value: 'color', label: 'Color', group: 'Component' },
+  { value: 'luminosity', label: 'Luminosity', group: 'Component' },
+]
 
 export interface LayerData {
   id: string
@@ -402,21 +441,37 @@ export class LayerManager {
 
   /**
    * Convert blend mode to canvas composite operation
+   * Note: Some modes (linear-dodge, linear-burn, subtract, divide) don't have
+   * native Canvas2D equivalents - they fall back to similar modes or source-over
    */
   private getCompositeOperation(blendMode: BlendMode): GlobalCompositeOperation {
     const modeMap: Record<BlendMode, GlobalCompositeOperation> = {
+      // Normal
       'normal': 'source-over',
-      'multiply': 'multiply',
-      'screen': 'screen',
-      'overlay': 'overlay',
+      // Darken group
       'darken': 'darken',
-      'lighten': 'lighten',
-      'color-dodge': 'color-dodge',
+      'multiply': 'multiply',
       'color-burn': 'color-burn',
-      'hard-light': 'hard-light',
+      'linear-burn': 'color-burn', // Fallback - no native equivalent
+      // Lighten group
+      'lighten': 'lighten',
+      'screen': 'screen',
+      'color-dodge': 'color-dodge',
+      'linear-dodge': 'lighter', // "Add" mode maps to 'lighter'
+      // Contrast group
+      'overlay': 'overlay',
       'soft-light': 'soft-light',
+      'hard-light': 'hard-light',
+      // Inversion group
       'difference': 'difference',
-      'exclusion': 'exclusion'
+      'exclusion': 'exclusion',
+      'subtract': 'difference', // Fallback - no native equivalent
+      'divide': 'screen', // Fallback - no native equivalent
+      // Component group (HSL modes - all natively supported)
+      'hue': 'hue',
+      'saturation': 'saturation',
+      'color': 'color',
+      'luminosity': 'luminosity'
     }
     return modeMap[blendMode] || 'source-over'
   }

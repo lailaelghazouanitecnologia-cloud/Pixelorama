@@ -27,7 +27,28 @@ export interface Layer {
   data: ImageData | null
 }
 
-export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten'
+// All 20 blend modes matching Pixelorama's BaseLayer.gd
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'linear-dodge' // Add
+  | 'color-burn'
+  | 'linear-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion'
+  | 'subtract'
+  | 'divide'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity'
 
 export interface Frame {
   id: string
