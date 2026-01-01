@@ -19,6 +19,7 @@ import {
 const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React.ComponentType<DialogProps>>>> = {
   newProject: lazy(() => import('./NewProjectDialog').then(m => ({ default: m.NewProjectDialog }))),
   exportImage: lazy(() => import('./ExportDialog').then(m => ({ default: m.ExportDialog }))),
+  importImage: lazy(() => import('./ImportDialog').then(m => ({ default: m.ImportDialog }))),
   resizeCanvas: lazy(() => import('./ResizeCanvasDialog').then(m => ({ default: m.ResizeCanvasDialog }))),
   onionSkin: lazy(() => import('./OnionSkinDialog').then(m => ({ default: m.OnionSkinDialog }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),

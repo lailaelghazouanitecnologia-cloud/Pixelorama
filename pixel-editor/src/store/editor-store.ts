@@ -500,14 +500,138 @@ export const useEditorStore = create<EditorState>()(
     }),
 
     mergeLayerDown: (index) => set((state) => {
-      if (index <= 0) return state
-      // Merge logic would go here - requires canvas operations
-      return { modified: true }
+      if (index <= 0 || index >= state.layers.length) return state
+
+      const upperLayer = state.layers[index]
+      const lowerLayer = state.layers[index - 1]
+
+      // Create canvas for merging
+      const canvas = document.createElement('canvas')
+      canvas.width = state.width
+      canvas.height = state.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return state
+
+      ctx.imageSmoothingEnabled = false
+
+      // Blend mode mapping
+      const blendModeMap: Record<string, GlobalCompositeOperation> = {
+        'normal': 'source-over',
+        'multiply': 'multiply',
+        'screen': 'screen',
+        'overlay': 'overlay',
+        'darken': 'darken',
+        'lighten': 'lighten',
+      }
+
+      // Draw lower layer first
+      if (lowerLayer.data && lowerLayer.visible) {
+        const tempCanvas = document.createElement('canvas')
+        tempCanvas.width = state.width
+        tempCanvas.height = state.height
+        const tempCtx = tempCanvas.getContext('2d')
+        if (tempCtx) {
+          tempCtx.putImageData(lowerLayer.data, 0, 0)
+          ctx.globalAlpha = lowerLayer.opacity / 100
+          ctx.drawImage(tempCanvas, 0, 0)
+        }
+      }
+
+      // Draw upper layer with blend mode
+      if (upperLayer.data && upperLayer.visible) {
+        const tempCanvas = document.createElement('canvas')
+        tempCanvas.width = state.width
+        tempCanvas.height = state.height
+        const tempCtx = tempCanvas.getContext('2d')
+        if (tempCtx) {
+          tempCtx.putImageData(upperLayer.data, 0, 0)
+          ctx.globalAlpha = upperLayer.opacity / 100
+          ctx.globalCompositeOperation = blendModeMap[upperLayer.blendMode] || 'source-over'
+          ctx.drawImage(tempCanvas, 0, 0)
+        }
+      }
+
+      // Get merged result
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = 'source-over'
+      const mergedData = ctx.getImageData(0, 0, state.width, state.height)
+
+      // Update layers - remove upper layer, update lower layer with merged data
+      const newLayers = state.layers.filter((_, i) => i !== index)
+      newLayers[index - 1] = {
+        ...newLayers[index - 1],
+        data: mergedData,
+        opacity: 100,
+        blendMode: 'normal',
+        name: `${lowerLayer.name} (merged)`,
+      }
+
+      return {
+        layers: newLayers,
+        currentLayerIndex: Math.min(state.currentLayerIndex, newLayers.length - 1),
+        modified: true,
+      }
     }),
 
     flattenLayers: () => set((state) => {
-      // Flatten logic would go here - requires canvas operations
-      return { modified: true }
+      if (state.layers.length <= 1) return state
+
+      // Create canvas for flattening
+      const canvas = document.createElement('canvas')
+      canvas.width = state.width
+      canvas.height = state.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return state
+
+      ctx.imageSmoothingEnabled = false
+
+      // Blend mode mapping
+      const blendModeMap: Record<string, GlobalCompositeOperation> = {
+        'normal': 'source-over',
+        'multiply': 'multiply',
+        'screen': 'screen',
+        'overlay': 'overlay',
+        'darken': 'darken',
+        'lighten': 'lighten',
+      }
+
+      // Composite all layers from bottom to top
+      for (const layer of state.layers) {
+        if (!layer.visible || !layer.data) continue
+
+        const tempCanvas = document.createElement('canvas')
+        tempCanvas.width = state.width
+        tempCanvas.height = state.height
+        const tempCtx = tempCanvas.getContext('2d')
+        if (tempCtx) {
+          tempCtx.putImageData(layer.data, 0, 0)
+          ctx.globalAlpha = layer.opacity / 100
+          ctx.globalCompositeOperation = blendModeMap[layer.blendMode] || 'source-over'
+          ctx.drawImage(tempCanvas, 0, 0)
+        }
+      }
+
+      // Get flattened result
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = 'source-over'
+      const flattenedData = ctx.getImageData(0, 0, state.width, state.height)
+
+      // Create single flattened layer
+      const flattenedLayer: Layer = {
+        id: `layer-${Date.now()}`,
+        name: 'Flattened',
+        visible: true,
+        locked: false,
+        opacity: 100,
+        blendMode: 'normal',
+        data: flattenedData,
+      }
+
+      return {
+        layers: [flattenedLayer],
+        currentLayerIndex: 0,
+        modified: true,
+      }
     }),
 
     setLayerData: (index, data) => set((state) => ({

@@ -78,6 +78,9 @@ export function Canvas() {
     currentLayerIndex,
     frames,
     currentFrameIndex,
+    isPlaying,
+    fps,
+    nextFrame,
     history,
   } = useEditorStore()
 
@@ -215,6 +218,21 @@ export function Canvas() {
 
     renderOnionSkin(ctx, currentFrameIndex, frameImageData, onionSkinSettings)
   }, [width, height, frames, currentFrameIndex, onionSkinSettings])
+
+  // Animation playback loop
+  useEffect(() => {
+    if (!isPlaying || frames.length <= 1) return
+
+    // Calculate interval based on FPS (default to 12 if not set)
+    const effectiveFps = fps || 12
+    const intervalMs = 1000 / effectiveFps
+
+    const intervalId = setInterval(() => {
+      nextFrame()
+    }, intervalMs)
+
+    return () => clearInterval(intervalId)
+  }, [isPlaying, fps, frames.length, nextFrame])
 
   // Get canvas position from mouse event
   const getCanvasPoint = useCallback((e: React.MouseEvent | React.PointerEvent): Point => {

@@ -46,6 +46,8 @@ export function TopMenu() {
     addLayer,
     duplicateLayer,
     deleteLayer,
+    mergeLayerDown,
+    flattenLayers,
     currentLayerIndex,
     layers,
     addFrame,
@@ -125,6 +127,9 @@ export function TopMenu() {
             </MenubarItem>
             <MenubarItem onClick={handleOpen}>
               Open <MenubarShortcut>Ctrl+O</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem onClick={() => openDialog('importImage')}>
+              Import... <MenubarShortcut>Ctrl+I</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem>
@@ -288,10 +293,18 @@ export function TopMenu() {
               Delete Layer
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem disabled={currentLayerIndex <= 0}>
+            <MenubarItem
+              onClick={() => mergeLayerDown(currentLayerIndex)}
+              disabled={currentLayerIndex <= 0}
+            >
               Merge Down
             </MenubarItem>
-            <MenubarItem>Flatten Image</MenubarItem>
+            <MenubarItem
+              onClick={() => flattenLayers()}
+              disabled={layers.length <= 1}
+            >
+              Flatten Image
+            </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem>Layer Properties...</MenubarItem>
           </MenubarContent>

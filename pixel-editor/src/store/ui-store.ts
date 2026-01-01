@@ -13,6 +13,7 @@ export type DialogType =
   | 'openProject'
   | 'saveProject'
   | 'exportImage'
+  | 'importImage'
   | 'preferences'
   | 'keyboardShortcuts'
   | 'resizeCanvas'
