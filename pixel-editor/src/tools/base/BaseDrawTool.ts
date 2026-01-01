@@ -22,7 +22,27 @@ export interface DrawToolConfig extends ToolConfig {
   overwrite: boolean
   spacingMode: boolean
   spacing: { x: number; y: number }
+  blendMode: GlobalCompositeOperation
 }
+
+// Blend modes supported for drawing (matches Canvas globalCompositeOperation)
+export type DrawBlendMode =
+  | 'source-over'     // Normal
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity'
 
 // ============================================================================
 // BaseDrawTool Class
@@ -36,6 +56,7 @@ export abstract class BaseDrawTool extends BaseTool {
   protected overwrite: boolean = false
   protected spacingMode: boolean = false
   protected spacing: { x: number; y: number } = { x: 1, y: 1 }
+  protected blendMode: GlobalCompositeOperation = 'source-over'
 
   // Drawing state
   protected isEraser: boolean = false
@@ -57,6 +78,7 @@ export abstract class BaseDrawTool extends BaseTool {
       overwrite: this.overwrite,
       spacingMode: this.spacingMode,
       spacing: { ...this.spacing },
+      blendMode: this.blendMode,
     }
   }
 
@@ -78,6 +100,9 @@ export abstract class BaseDrawTool extends BaseTool {
     }
     if (config.spacing !== undefined) {
       this.spacing = { ...config.spacing }
+    }
+    if (config.blendMode !== undefined) {
+      this.blendMode = config.blendMode
     }
     super.setConfig(config)
   }
@@ -197,6 +222,21 @@ export abstract class BaseDrawTool extends BaseTool {
       hardness: 100,
       spacing: 0,
     }
+  }
+
+  /**
+   * Get current blend mode.
+   */
+  getBlendMode(): GlobalCompositeOperation {
+    return this.blendMode
+  }
+
+  /**
+   * Set blend mode for drawing.
+   */
+  setBlendMode(mode: GlobalCompositeOperation): void {
+    this.blendMode = mode
+    this.saveConfig()
   }
 
   // ============================================================================
@@ -344,21 +384,29 @@ export abstract class BaseDrawTool extends BaseTool {
       context.clearRect(x, y, 1, 1)
     } else {
       const alpha = this.brushOpacity / 100
+      const previousCompositeOp = context.globalCompositeOperation
+
+      // Apply blend mode
+      context.globalCompositeOperation = this.blendMode
 
       if (this.overwrite) {
         // Overwrite mode: completely replace the pixel
+        context.globalCompositeOperation = 'source-over'
         context.clearRect(x, y, 1, 1)
         context.fillStyle = ctx.color
         context.globalAlpha = alpha
         context.fillRect(x, y, 1, 1)
         context.globalAlpha = 1
       } else {
-        // Normal blend mode
+        // Use configured blend mode
         context.fillStyle = ctx.color
         context.globalAlpha = alpha
         context.fillRect(x, y, 1, 1)
         context.globalAlpha = 1
       }
+
+      // Restore previous composite operation
+      context.globalCompositeOperation = previousCompositeOp
     }
   }
 

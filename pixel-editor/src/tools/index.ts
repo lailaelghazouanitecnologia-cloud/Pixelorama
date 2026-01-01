@@ -13,6 +13,9 @@ export * from './design/RectangleTool'
 export * from './design/EllipseTool'
 export * from './design/TextTool'
 export * from './design/IsometricBoxTool'
+export * from './design/SmudgeTool'
+export * from './design/CloneStampTool'
+export * from './design/DodgeBurnTool'
 
 // Utility Tools
 export * from './utility/Pan'
@@ -21,6 +24,7 @@ export * from './utility/ColorPicker'
 export * from './utility/Move'
 export * from './utility/CropTool'
 export * from './utility/TileMapTool'
+export * from './utility/TransformTool'
 
 // Selection Tools
 export * from './selection/RectSelect'
