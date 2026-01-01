@@ -251,7 +251,7 @@ export function Canvas() {
 
   // Check if tool is handled by ToolManager
   const isToolManagedTool = (tool: string): boolean => {
-    return ['pencil', 'eraser', 'bucket', 'shading', 'spray', 'colorPicker'].includes(tool)
+    return ['pencil', 'eraser', 'bucket', 'shading', 'spray', 'colorPicker', 'move'].includes(tool)
   }
 
   // Get DrawingContext for ToolManager

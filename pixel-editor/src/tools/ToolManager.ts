@@ -231,6 +231,9 @@ class ToolManagerClass {
       case 'colorPicker':
         this.pickColor(ctx, pos, options)
         break
+      case 'move':
+        // Move tool - record start position, original image is already saved
+        break
       case 'pan':
       case 'zoom':
         // Handled by Canvas directly
@@ -264,6 +267,10 @@ class ToolManagerClass {
       case 'rectangle':
       case 'ellipse':
         // Shape preview - handled by Canvas
+        break
+      case 'move':
+        // Move preview - redraw canvas content with offset
+        this.moveLayerPreview(ctx, pos)
         break
     }
   }
@@ -581,6 +588,34 @@ class ToolManagerClass {
   }
 
   // ============================================================================
+  // Move Tool
+  // ============================================================================
+
+  /**
+   * Preview layer content moved by offset from start position.
+   */
+  private moveLayerPreview(ctx: DrawingContext, pos: Point): void {
+    if (!this.undoImageData || !this.state.startPosition) return
+
+    const { ctx: context, canvas } = ctx
+    const deltaX = pos.x - this.state.startPosition.x
+    const deltaY = pos.y - this.state.startPosition.y
+
+    // Clear canvas
+    context.clearRect(0, 0, canvas.width, canvas.height)
+
+    // Create temp canvas with original content
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = canvas.width
+    tempCanvas.height = canvas.height
+    const tempCtx = tempCanvas.getContext('2d')!
+    tempCtx.putImageData(this.undoImageData, 0, 0)
+
+    // Draw with offset
+    context.drawImage(tempCanvas, deltaX, deltaY)
+  }
+
+  // ============================================================================
   // Helpers
   // ============================================================================
 
@@ -607,7 +642,7 @@ class ToolManagerClass {
   }
 
   private shouldSaveHistory(toolName: string): boolean {
-    return ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'shading', 'spray'].includes(toolName)
+    return ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'shading', 'spray', 'move'].includes(toolName)
   }
 
   private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
