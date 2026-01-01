@@ -25,7 +25,7 @@ export type ToolName =
 
 export type ShadingMode = 'lighten' | 'darken'
 
-export type LayerType = 'pixel' | 'group' | 'tilemap'
+export type LayerType = 'pixel' | 'group' | 'tilemap' | 'audio'
 
 export interface Layer {
   id: string
@@ -49,6 +49,8 @@ export interface Layer {
   // TileMap layer support
   tilemapData?: import('@/core/tilemap').TileMapData
   selectedTilesetId?: string
+  // Audio layer support
+  audioLayerId?: string  // Reference to audio layer data in audio-store
 }
 
 // All 20 blend modes matching Pixelorama's BaseLayer.gd
