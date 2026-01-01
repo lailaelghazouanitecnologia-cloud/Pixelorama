@@ -3,7 +3,7 @@
  * Based on Pixelorama's export system
  */
 
-export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'gif'
+export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'gif' | 'apng'
 
 export interface ExportOptions {
   format: ExportFormat
@@ -277,6 +277,7 @@ function getMimeType(format: ExportFormat): string {
     case 'jpeg': return 'image/jpeg'
     case 'webp': return 'image/webp'
     case 'gif': return 'image/gif'
+    case 'apng': return 'image/apng'
     default: return 'image/png'
   }
 }
@@ -333,6 +334,65 @@ export async function exportAnimationAsGif(
   const link = document.createElement('a')
   link.href = url
   link.download = `${filename}.gif`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Export frames as animated PNG (APNG)
+ */
+export { createAnimatedPng, downloadAnimatedPng, ApngEncoder } from './apngEncoder'
+
+import { createAnimatedPng } from './apngEncoder'
+
+/**
+ * Create animated PNG from frames and return as data URL
+ */
+export async function framesToApngDataUrl(
+  frames: HTMLCanvasElement[],
+  fps: number
+): Promise<string> {
+  const blob = await createAnimatedPng(frames, fps)
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Failed to read APNG blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Export animation as APNG file download
+ */
+export async function exportAnimationAsApng(
+  frames: HTMLCanvasElement[],
+  filename: string,
+  fps: number = 12,
+  scale: number = 1
+): Promise<void> {
+  // Scale frames if needed
+  let exportFrames = frames
+  if (scale !== 1 && frames.length > 0) {
+    exportFrames = frames.map(frame => {
+      const scaled = document.createElement('canvas')
+      scaled.width = frame.width * scale
+      scaled.height = frame.height * scale
+      const ctx = scaled.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(frame, 0, 0, scaled.width, scaled.height)
+      return scaled
+    })
+  }
+
+  const blob = await createAnimatedPng(exportFrames, fps)
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filename}.png`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
