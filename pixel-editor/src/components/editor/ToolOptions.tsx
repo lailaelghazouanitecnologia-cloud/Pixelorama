@@ -10,6 +10,7 @@ import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, Mous
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
+import { BrushSelector } from "./BrushLibrary"
 
 export function ToolOptions() {
   // Local state for new tools
@@ -98,6 +99,14 @@ export function ToolOptions() {
           borderBottom: '1px solid var(--pix-border)'
         }}
       >
+        {/* Brush Type Selector */}
+        {showPencilOptions && (
+          <>
+            <BrushSelector />
+            <div className="separator-v h-4" />
+          </>
+        )}
+
         {/* Brush Size */}
         {showBrushOptions && (
           <div className="flex items-center gap-2">
