@@ -4,9 +4,20 @@
  */
 
 import { useEditorStore } from "@/store/editor-store"
-import { ArrowLeftRight, Plus, Trash2, Download, Upload, Pipette } from "lucide-react"
+import { ArrowLeftRight, Plus, Trash2, Download, Upload, Pipette, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useCallback, useMemo, useRef } from "react"
+import { downloadPalette, openPaletteDialog, PRESET_PALETTES } from "@/core/palette"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Color conversion utilities
 function hexToHsv(hex: string): { h: number; s: number; v: number } {
@@ -71,6 +82,7 @@ export function ColorPanel() {
     swapColors,
     addToPalette,
     removeFromPalette,
+    setPalette,
   } = useEditorStore()
 
   const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<number | null>(null)
@@ -103,6 +115,24 @@ export function ColorPanel() {
     if (selectedPaletteIndex !== null) {
       removeFromPalette(selectedPaletteIndex)
       setSelectedPaletteIndex(null)
+    }
+  }
+
+  const handleImportPalette = async () => {
+    const result = await openPaletteDialog()
+    if (result) {
+      setPalette(result.colors)
+    }
+  }
+
+  const handleExportPalette = (format: 'gpl' | 'pal' | 'json' | 'hex' | 'css') => {
+    downloadPalette(palette, format, 'palette')
+  }
+
+  const handleLoadPreset = (presetName: string) => {
+    const colors = PRESET_PALETTES[presetName]
+    if (colors) {
+      setPalette(colors)
     }
   }
 
@@ -323,7 +353,49 @@ export function ColorPanel() {
         <div className="flex-1 flex flex-col">
           {/* Swatches Toolbar */}
           <div className="flex items-center justify-between px-2 py-1.5 border-b" style={{ borderColor: 'var(--pix-border)' }}>
-            <span className="text-pix-xs text-pix-text-muted">Palette</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-pix-xs text-pix-text-muted hover:text-pix-text">
+                Palette <ChevronDown className="w-3 h-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="panel">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Load Preset</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="panel">
+                    {Object.keys(PRESET_PALETTES).map((name) => (
+                      <DropdownMenuItem key={name} onClick={() => handleLoadPreset(name)}>
+                        {name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator className="separator" />
+                <DropdownMenuItem onClick={handleImportPalette}>
+                  <Upload className="w-3.5 h-3.5 mr-2" /> Import...
+                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Download className="w-3.5 h-3.5 mr-2" /> Export As
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="panel">
+                    <DropdownMenuItem onClick={() => handleExportPalette('gpl')}>
+                      GIMP Palette (.gpl)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPalette('pal')}>
+                      JASC Palette (.pal)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPalette('json')}>
+                      JSON (.json)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPalette('hex')}>
+                      HEX Text (.hex)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPalette('css')}>
+                      CSS Variables (.css)
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="flex gap-0.5">
               <button className="icon-btn" onClick={handleAddToPalette} title="Add to Palette">
                 <Plus className="w-3 h-3" />
@@ -335,12 +407,6 @@ export function ColorPanel() {
                 title="Remove from Palette"
               >
                 <Trash2 className="w-3 h-3" />
-              </button>
-              <button className="icon-btn" title="Import Palette">
-                <Upload className="w-3 h-3" />
-              </button>
-              <button className="icon-btn" title="Export Palette">
-                <Download className="w-3 h-3" />
               </button>
             </div>
           </div>
