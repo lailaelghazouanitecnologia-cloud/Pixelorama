@@ -26,6 +26,7 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   animationTags: lazy(() => import('./AnimationTagsDialog').then(m => ({ default: m.AnimationTagsDialog }))),
   spritesheet: lazy(() => import('./SpritesheetDialog').then(m => ({ default: m.SpritesheetDialog }))),
   onionSkin: lazy(() => import('./OnionSkinDialog').then(m => ({ default: m.OnionSkinDialog }))),
+  isometricGrid: lazy(() => import('./IsometricGridDialog').then(m => ({ default: m.IsometricGridDialog }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),
   preferences: lazy(() => import('./PreferencesDialog').then(m => ({ default: m.PreferencesDialog }))),
   keyboardShortcuts: lazy(() => import('./KeyboardShortcutsDialog').then(m => ({ default: m.KeyboardShortcutsDialog }))),

@@ -32,6 +32,8 @@ export function TopMenu() {
     width,
     height,
     showGrid,
+    gridType,
+    setGridType,
     showOnionSkin,
     showRulers,
     showGuides,
@@ -244,6 +246,27 @@ export function TopMenu() {
             <MenubarCheckboxItem checked={showGrid} onClick={toggleGrid}>
               Show Grid <MenubarShortcut>Ctrl+G</MenubarShortcut>
             </MenubarCheckboxItem>
+            <MenubarSub>
+              <MenubarSubTrigger>Grid Type</MenubarSubTrigger>
+              <MenubarSubContent className="panel">
+                <MenubarCheckboxItem
+                  checked={gridType === 'rectangular'}
+                  onClick={() => setGridType('rectangular')}
+                >
+                  Rectangular (Pixel)
+                </MenubarCheckboxItem>
+                <MenubarCheckboxItem
+                  checked={gridType === 'isometric'}
+                  onClick={() => setGridType('isometric')}
+                >
+                  Isometric
+                </MenubarCheckboxItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem onClick={() => openDialog('isometricGrid')}>
+                  Isometric Grid Settings...
+                </MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
             <MenubarCheckboxItem checked={showRulers} onClick={toggleRulers}>
               Show Rulers
             </MenubarCheckboxItem>

@@ -27,6 +27,7 @@ export type DialogType =
   | 'animationTags'
   | 'spritesheet'
   | 'gridSettings'
+  | 'isometricGrid'
   | 'guidesSettings'
   | 'about'
   | 'startup'

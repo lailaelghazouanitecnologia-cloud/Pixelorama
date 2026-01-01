@@ -82,6 +82,9 @@ export function Canvas() {
     primaryColor,
     secondaryColor,
     showGrid,
+    gridType,
+    isometricCellWidth,
+    isometricCellHeight,
     showRulers,
     layers,
     currentLayerIndex,
@@ -753,7 +756,7 @@ export function Canvas() {
           )}
 
           {/* Grid overlay */}
-          {showGrid && zoom >= 4 && (
+          {showGrid && zoom >= 4 && gridType === 'rectangular' && (
             <svg
               className="absolute inset-0 pointer-events-none"
               width={canvasWidth}
@@ -770,6 +773,64 @@ export function Canvas() {
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          )}
+
+          {/* Isometric grid overlay */}
+          {showGrid && zoom >= 2 && gridType === 'isometric' && (
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              width={canvasWidth}
+              height={canvasHeight}
+            >
+              {/* Generate isometric grid lines */}
+              {(() => {
+                const cellW = isometricCellWidth * zoom
+                const cellH = isometricCellHeight * zoom
+                const lines: React.ReactNode[] = []
+
+                // Diagonal lines going down-right (/)
+                for (let i = -Math.ceil(canvasHeight / cellH); i <= Math.ceil((canvasWidth + canvasHeight) / cellW); i++) {
+                  const startX = i * cellW
+                  const startY = 0
+                  const endX = startX + canvasHeight * (cellW / cellH)
+                  const endY = canvasHeight
+
+                  lines.push(
+                    <line
+                      key={`iso-dr-${i}`}
+                      x1={startX}
+                      y1={startY}
+                      x2={endX}
+                      y2={endY}
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="0.5"
+                    />
+                  )
+                }
+
+                // Diagonal lines going down-left (\)
+                for (let i = -Math.ceil(canvasWidth / cellW); i <= Math.ceil((canvasWidth + canvasHeight) / cellW); i++) {
+                  const startX = i * cellW
+                  const startY = 0
+                  const endX = startX - canvasHeight * (cellW / cellH)
+                  const endY = canvasHeight
+
+                  lines.push(
+                    <line
+                      key={`iso-dl-${i}`}
+                      x1={startX}
+                      y1={startY}
+                      x2={endX}
+                      y2={endY}
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="0.5"
+                    />
+                  )
+                }
+
+                return lines
+              })()}
             </svg>
           )}
 

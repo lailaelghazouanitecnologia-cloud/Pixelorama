@@ -109,6 +109,9 @@ export interface EditorState {
 
   // UI
   showGrid: boolean
+  gridType: 'rectangular' | 'isometric'
+  isometricCellWidth: number
+  isometricCellHeight: number
   showOnionSkin: boolean
   showRulers: boolean
   showGuides: boolean
@@ -215,6 +218,8 @@ export interface EditorState {
 
   // UI toggles
   toggleGrid: () => void
+  setGridType: (type: 'rectangular' | 'isometric') => void
+  setIsometricCellSize: (width: number, height: number) => void
   toggleOnionSkin: () => void
   toggleRulers: () => void
   toggleGuides: () => void
@@ -348,6 +353,9 @@ export const useEditorStore = create<EditorState>()(
 
     // UI
     showGrid: true,
+    gridType: 'rectangular' as const,
+    isometricCellWidth: 2,
+    isometricCellHeight: 1,
     showOnionSkin: false,
     showRulers: true,
     showGuides: true,
@@ -1030,6 +1038,11 @@ export const useEditorStore = create<EditorState>()(
 
     // UI
     toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),
+    setGridType: (type) => set({ gridType: type }),
+    setIsometricCellSize: (width, height) => set({
+      isometricCellWidth: Math.max(1, Math.min(32, width)),
+      isometricCellHeight: Math.max(1, Math.min(32, height)),
+    }),
     toggleOnionSkin: () => set((state) => ({ showOnionSkin: !state.showOnionSkin })),
     toggleRulers: () => set((state) => ({ showRulers: !state.showRulers })),
     toggleGuides: () => set((state) => ({ showGuides: !state.showGuides })),
