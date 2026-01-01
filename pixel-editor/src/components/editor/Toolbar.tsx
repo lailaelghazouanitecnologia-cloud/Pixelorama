@@ -20,6 +20,17 @@ import {
   PenTool,
   Palette,
   Blend,
+  Stamp,
+  Sun,
+  Droplets,
+  Spline,
+  Type,
+  Box,
+  RotateCcw,
+  Grid3X3,
+  Crop,
+  Pentagon,
+  Paintbrush,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToolsStore, type ToolName } from "@/store/tools-store"
@@ -93,12 +104,40 @@ export function Toolbar() {
 
         <ToolSeparator />
 
+        {/* Advanced Drawing Tools */}
+        <ToolButton
+          tool="smudge"
+          icon={<Droplets className="w-4 h-4" />}
+          label="Smudge"
+          shortcut="Y"
+        />
+        <ToolButton
+          tool="cloneStamp"
+          icon={<Stamp className="w-4 h-4" />}
+          label="Clone Stamp"
+          shortcut="N"
+        />
+        <ToolButton
+          tool="dodgeBurn"
+          icon={<Sun className="w-4 h-4" />}
+          label="Dodge/Burn"
+          shortcut=","
+        />
+
+        <ToolSeparator />
+
         {/* Shape Tools */}
         <ToolButton
           tool="line"
           icon={<Minus className="w-4 h-4" />}
           label="Line"
           shortcut="L"
+        />
+        <ToolButton
+          tool="curve"
+          icon={<Spline className="w-4 h-4" />}
+          label="Curve"
+          shortcut="C"
         />
         <ToolButton
           tool="rectangle"
@@ -111,6 +150,18 @@ export function Toolbar() {
           icon={<Circle className="w-4 h-4" />}
           label="Ellipse"
           shortcut="O"
+        />
+        <ToolButton
+          tool="text"
+          icon={<Type className="w-4 h-4" />}
+          label="Text"
+          shortcut="T"
+        />
+        <ToolButton
+          tool="isometricBox"
+          icon={<Box className="w-4 h-4" />}
+          label="Isometric Box"
+          shortcut="X"
         />
 
         <ToolSeparator />
@@ -129,6 +180,18 @@ export function Toolbar() {
           shortcut="J"
         />
         <ToolButton
+          tool="lasso"
+          icon={<PenTool className="w-4 h-4" />}
+          label="Lasso"
+          shortcut="Q"
+        />
+        <ToolButton
+          tool="polygonSelect"
+          icon={<Pentagon className="w-4 h-4" />}
+          label="Polygon Select"
+          shortcut="P"
+        />
+        <ToolButton
           tool="magicWand"
           icon={<Wand2 className="w-4 h-4" />}
           label="Magic Wand"
@@ -141,10 +204,10 @@ export function Toolbar() {
           shortcut="U"
         />
         <ToolButton
-          tool="lasso"
-          icon={<PenTool className="w-4 h-4" />}
-          label="Lasso"
-          shortcut="Q"
+          tool="paintSelect"
+          icon={<Paintbrush className="w-4 h-4" />}
+          label="Paint Select"
+          shortcut="A"
         />
 
         <ToolSeparator />
@@ -161,6 +224,24 @@ export function Toolbar() {
           icon={<Move className="w-4 h-4" />}
           label="Move"
           shortcut="V"
+        />
+        <ToolButton
+          tool="transform"
+          icon={<RotateCcw className="w-4 h-4" />}
+          label="Transform"
+          shortcut="Ctrl+T"
+        />
+        <ToolButton
+          tool="crop"
+          icon={<Crop className="w-4 h-4" />}
+          label="Crop"
+          shortcut="K"
+        />
+        <ToolButton
+          tool="tileMap"
+          icon={<Grid3X3 className="w-4 h-4" />}
+          label="TileMap"
+          shortcut="Shift+T"
         />
         <ToolButton
           tool="pan"

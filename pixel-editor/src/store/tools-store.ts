@@ -15,8 +15,9 @@ export type ToolCategory = 'design' | 'selection' | 'utility'
 // Tool names
 export type ToolName =
   | 'pencil' | 'eraser' | 'bucket' | 'line' | 'curve' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient' | 'isometricBox'  // Design tools
+  | 'smudge' | 'cloneStamp' | 'dodgeBurn' | 'text'  // Advanced design tools
   | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'polygonSelect' | 'magicWand' | 'colorSelect' | 'paintSelect'  // Selection tools
-  | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'text'                                          // Utility tools
+  | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'transform' | 'tileMap'  // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
 
@@ -44,6 +45,10 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   spray: { name: 'spray', displayName: 'Spray', icon: 'spray', category: 'design', shortcut: 'S' },
   gradient: { name: 'gradient', displayName: 'Gradient', icon: 'gradient', category: 'design', shortcut: 'F' },
   isometricBox: { name: 'isometricBox', displayName: 'Isometric Box', icon: 'box', category: 'design', shortcut: 'X' },
+  smudge: { name: 'smudge', displayName: 'Smudge', icon: 'smudge', category: 'design', shortcut: 'Y' },
+  cloneStamp: { name: 'cloneStamp', displayName: 'Clone Stamp', icon: 'stamp', category: 'design', shortcut: 'N' },
+  dodgeBurn: { name: 'dodgeBurn', displayName: 'Dodge/Burn', icon: 'sun', category: 'design', shortcut: ',' },
+  text: { name: 'text', displayName: 'Text', icon: 'type', category: 'design', shortcut: 'T' },
 
   // Selection tools
   rectSelect: { name: 'rectSelect', displayName: 'Rectangle Select', icon: 'rectSelect', category: 'selection', shortcut: 'M' },
@@ -60,7 +65,8 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   pan: { name: 'pan', displayName: 'Pan', icon: 'pan', category: 'utility', shortcut: 'H' },
   zoom: { name: 'zoom', displayName: 'Zoom', icon: 'zoom', category: 'utility', shortcut: 'Z' },
   crop: { name: 'crop', displayName: 'Crop', icon: 'crop', category: 'utility', shortcut: 'K' },
-  text: { name: 'text', displayName: 'Text', icon: 'type', category: 'design', shortcut: 'T' },
+  transform: { name: 'transform', displayName: 'Transform', icon: 'move', category: 'utility', shortcut: 'Ctrl+T' },
+  tileMap: { name: 'tileMap', displayName: 'TileMap', icon: 'grid', category: 'utility', shortcut: 'Shift+T' },
 }
 
 // Keyboard shortcuts mapping
@@ -304,7 +310,7 @@ export const useToolsStore = create<ToolsState>()(
 
     isDrawingTool: (tool) => {
       const toolName = tool || get().currentTool
-      return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'text', 'isometricBox'].includes(toolName)
+      return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'text', 'isometricBox', 'smudge', 'cloneStamp', 'dodgeBurn', 'gradient'].includes(toolName)
     },
 
     isSelectionTool: (tool) => {

@@ -27,20 +27,31 @@ import "@/tools/design/Pencil"
 import "@/tools/design/Eraser"
 import "@/tools/design/Bucket"
 import "@/tools/design/LineTool"
+import "@/tools/design/CurveTool"
 import "@/tools/design/RectangleTool"
 import "@/tools/design/EllipseTool"
+import "@/tools/design/TextTool"
+import "@/tools/design/IsometricBoxTool"
 import "@/tools/design/Shading"
 import "@/tools/design/Spray"
 import "@/tools/design/Gradient"
+import "@/tools/design/SmudgeTool"
+import "@/tools/design/CloneStampTool"
+import "@/tools/design/DodgeBurnTool"
 import "@/tools/utility/Pan"
 import "@/tools/utility/Zoom"
 import "@/tools/utility/ColorPicker"
 import "@/tools/utility/Move"
+import "@/tools/utility/CropTool"
+import "@/tools/utility/TransformTool"
+import "@/tools/utility/TileMapTool"
 import "@/tools/selection/RectSelect"
 import "@/tools/selection/EllipseSelect"
 import "@/tools/selection/MagicWand"
 import "@/tools/selection/ColorSelect"
 import "@/tools/selection/Lasso"
+import "@/tools/selection/PolygonSelect"
+import "@/tools/selection/PaintSelect"
 
 interface Point {
   x: number
@@ -267,7 +278,11 @@ export function Canvas() {
 
   // Check if tool is handled by ToolManager
   const isToolManagedTool = (tool: string): boolean => {
-    return ['pencil', 'eraser', 'bucket', 'shading', 'spray', 'colorPicker', 'move'].includes(tool)
+    return [
+      'pencil', 'eraser', 'bucket', 'shading', 'spray', 'colorPicker', 'move',
+      'smudge', 'cloneStamp', 'dodgeBurn', 'gradient', 'curve', 'text', 'isometricBox',
+      'transform', 'crop', 'tileMap', 'paintSelect', 'polygonSelect', 'lasso'
+    ].includes(tool)
   }
 
   // Get DrawingContext for ToolManager

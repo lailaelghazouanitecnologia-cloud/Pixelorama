@@ -3,14 +3,24 @@
  * Based on Pixelorama's ToolOptions
  */
 
+import { useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows } from "lucide-react"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
 
 export function ToolOptions() {
+  // Local state for new tools
+  const [smudgeStrength, setSmudgeStrength] = useState(50)
+  const [cloneOpacity, setCloneOpacity] = useState(100)
+  const [dodgeBurnMode, setDodgeBurnMode] = useState<'dodge' | 'burn'>('dodge')
+  const [dodgeBurnExposure, setDodgeBurnExposure] = useState(50)
+  const [dodgeBurnRange, setDodgeBurnRange] = useState<'shadows' | 'midtones' | 'highlights'>('midtones')
+  const [textSize, setTextSize] = useState(16)
+  const [curvePoints, setCurvePoints] = useState(2)
+
   // Tool-specific settings from tools-store
   const {
     brushSize,
@@ -62,14 +72,22 @@ export function ToolOptions() {
   const handleRedo = () => history.redo()
 
   // Tool-specific options based on current tool
-  const showBrushOptions = ['pencil', 'eraser', 'line', 'shading'].includes(currentTool)
+  const showBrushOptions = ['pencil', 'eraser', 'line', 'shading', 'smudge', 'cloneStamp', 'dodgeBurn'].includes(currentTool)
   const showPencilOptions = currentTool === 'pencil'
   const showShapeOptions = ['rectangle', 'ellipse'].includes(currentTool)
   const showBucketOptions = currentTool === 'bucket'
   const showShadingOptions = currentTool === 'shading'
   const showSprayOptions = currentTool === 'spray'
-  const showSelectionOptions = ['rectSelect', 'ellipseSelect', 'magicWand', 'lasso'].includes(currentTool)
-  const showMirrorOptions = ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'spray', 'shading'].includes(currentTool)
+  const showSelectionOptions = ['rectSelect', 'ellipseSelect', 'magicWand', 'lasso', 'polygonSelect', 'paintSelect', 'colorSelect'].includes(currentTool)
+  const showMirrorOptions = ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'spray', 'shading', 'smudge', 'cloneStamp'].includes(currentTool)
+  const showSmudgeOptions = currentTool === 'smudge'
+  const showCloneStampOptions = currentTool === 'cloneStamp'
+  const showDodgeBurnOptions = currentTool === 'dodgeBurn'
+  const showTextOptions = currentTool === 'text'
+  const showCurveOptions = currentTool === 'curve'
+  const showIsometricOptions = currentTool === 'isometricBox'
+  const showTransformOptions = currentTool === 'transform'
+  const showTileMapOptions = currentTool === 'tileMap'
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -103,8 +121,8 @@ export function ToolOptions() {
           </div>
         )}
 
-        {/* Brush Opacity */}
-        {showBrushOptions && (
+        {/* Brush Opacity - for pencil, eraser, line */}
+        {showBrushOptions && !showSmudgeOptions && !showCloneStampOptions && !showDodgeBurnOptions && (
           <>
             <div className="separator-v h-4" />
             <div className="flex items-center gap-2">
@@ -122,8 +140,174 @@ export function ToolOptions() {
           </>
         )}
 
+        {/* Smudge Options */}
+        {showSmudgeOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Strength:</span>
+              <input
+                type="range"
+                className="slider w-20"
+                value={smudgeStrength}
+                onChange={(e) => setSmudgeStrength(parseInt(e.target.value))}
+                min={1}
+                max={100}
+              />
+              <span className="text-pix-xs w-8 text-right">{smudgeStrength}%</span>
+            </div>
+          </>
+        )}
+
+        {/* Clone Stamp Options */}
+        {showCloneStampOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Opacity:</span>
+              <input
+                type="range"
+                className="slider w-20"
+                value={cloneOpacity}
+                onChange={(e) => setCloneOpacity(parseInt(e.target.value))}
+                min={1}
+                max={100}
+              />
+              <span className="text-pix-xs w-8 text-right">{cloneOpacity}%</span>
+            </div>
+            <span className="text-pix-xs text-pix-text-muted ml-2">Alt+Click to set source</span>
+          </>
+        )}
+
+        {/* Dodge/Burn Options */}
+        {showDodgeBurnOptions && (
+          <>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`icon-btn ${dodgeBurnMode === 'dodge' ? 'active' : ''}`}
+                    onClick={() => setDodgeBurnMode('dodge')}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="tooltip">
+                  <p>Dodge (Lighten)</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`icon-btn ${dodgeBurnMode === 'burn' ? 'active' : ''}`}
+                    onClick={() => setDodgeBurnMode('burn')}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="tooltip">
+                  <p>Burn (Darken)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Exposure:</span>
+              <input
+                type="range"
+                className="slider w-16"
+                value={dodgeBurnExposure}
+                onChange={(e) => setDodgeBurnExposure(parseInt(e.target.value))}
+                min={1}
+                max={100}
+              />
+              <span className="text-pix-xs w-8 text-right">{dodgeBurnExposure}%</span>
+            </div>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Range:</span>
+              <select
+                className="input py-0 text-pix-xs"
+                value={dodgeBurnRange}
+                onChange={(e) => setDodgeBurnRange(e.target.value as 'shadows' | 'midtones' | 'highlights')}
+              >
+                <option value="shadows">Shadows</option>
+                <option value="midtones">Midtones</option>
+                <option value="highlights">Highlights</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* Text Options */}
+        {showTextOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Font Size:</span>
+            <input
+              type="number"
+              className="input w-12 text-center text-pix-xs py-0"
+              value={textSize}
+              onChange={(e) => setTextSize(Math.max(4, Math.min(128, parseInt(e.target.value) || 16)))}
+              min={4}
+              max={128}
+            />
+            <span className="text-pix-xs text-pix-text-muted ml-2">Click to place text</span>
+          </div>
+        )}
+
+        {/* Curve Options */}
+        {showCurveOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Control Points:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={curvePoints}
+              onChange={(e) => setCurvePoints(parseInt(e.target.value))}
+            >
+              <option value={2}>2 (Quadratic)</option>
+              <option value={3}>3 (Cubic)</option>
+            </select>
+            <span className="text-pix-xs text-pix-text-muted ml-2">Click to place points, Enter to confirm</span>
+          </div>
+        )}
+
+        {/* Isometric Box Options */}
+        {showIsometricOptions && (
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-3 h-3"
+                checked={filled}
+                onChange={(e) => setFilled(e.target.checked)}
+              />
+              <span>Filled</span>
+            </label>
+            <span className="text-pix-xs text-pix-text-muted ml-2">Drag to create isometric box</span>
+          </div>
+        )}
+
+        {/* Transform Options */}
+        {showTransformOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">
+              Drag handles to scale, drag inside to move, drag rotation handle to rotate
+            </span>
+          </div>
+        )}
+
+        {/* TileMap Options */}
+        {showTileMapOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">
+              Select tile from palette, click to place
+            </span>
+          </div>
+        )}
+
         {/* Pixel Perfect */}
-        {showBrushOptions && (
+        {showBrushOptions && !showSmudgeOptions && !showCloneStampOptions && !showDodgeBurnOptions && (
           <>
             <div className="separator-v h-4" />
             <Tooltip>
@@ -361,7 +545,7 @@ export function ToolOptions() {
               <option value="subtract">Subtract (Alt)</option>
               <option value="intersect">Intersect (Ctrl+Shift)</option>
             </select>
-            {currentTool === 'magicWand' && (
+            {(currentTool === 'magicWand' || currentTool === 'colorSelect') && (
               <>
                 <div className="separator-v h-4 mx-1" />
                 <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
@@ -373,6 +557,9 @@ export function ToolOptions() {
                   max={255}
                 />
               </>
+            )}
+            {currentTool === 'paintSelect' && (
+              <span className="text-pix-xs text-pix-text-muted ml-2">Paint to add/remove from selection</span>
             )}
           </div>
         )}
