@@ -109,6 +109,36 @@ export function getShortcuts(): ShortcutAction[] {
       description: 'Invert Selection'
     },
 
+    // Clipboard operations
+    {
+      key: 'x',
+      ctrl: true,
+      action: () => store.cut(),
+      description: 'Cut'
+    },
+    {
+      key: 'c',
+      ctrl: true,
+      action: () => store.copy(),
+      description: 'Copy'
+    },
+    {
+      key: 'v',
+      ctrl: true,
+      action: () => store.paste(),
+      description: 'Paste'
+    },
+    {
+      key: 'Delete',
+      action: () => store.deleteSelection(),
+      description: 'Delete Selection'
+    },
+    {
+      key: 'Backspace',
+      action: () => store.deleteSelection(),
+      description: 'Delete Selection'
+    },
+
     // View operations
     {
       key: '=',
