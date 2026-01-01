@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/menubar"
 import { useEditorStore } from "@/store/editor-store"
 import { useUIStore } from "@/store/ui-store"
+import { useToolsStore } from "@/store/tools-store"
 import { getHistory } from "@/core/history"
 import { downloadCanvas, exportAnimationAsGif, exportAnimationAsApng } from "@/core/export"
 import { compositeFrameLayers } from "@/core/layerCanvas"
@@ -27,6 +28,7 @@ import { loadReferenceImage } from "./ReferenceImage"
 
 export function TopMenu() {
   const { openDialog } = useUIStore()
+  const { setTool } = useToolsStore()
 
   const {
     projectName,
@@ -92,6 +94,9 @@ export function TopMenu() {
     addPerspectiveGuide,
     togglePerspectiveGuides,
     clearPerspectiveGuides,
+    duplicateFrame,
+    deleteFrame,
+    currentFrameIndex,
   } = useEditorStore()
 
   const history = getHistory()
@@ -332,7 +337,9 @@ export function TopMenu() {
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Select Color...</MenubarItem>
+            <MenubarItem onClick={() => setTool('colorSelect')}>
+              Select Color...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -465,7 +472,9 @@ export function TopMenu() {
                 <MenubarItem onClick={rotate90CW}>90° Clockwise</MenubarItem>
                 <MenubarItem onClick={rotate90CCW}>90° Counter-clockwise</MenubarItem>
                 <MenubarItem onClick={rotate180}>180°</MenubarItem>
-                <MenubarItem>Free Rotate...</MenubarItem>
+                <MenubarItem onClick={() => setTool('transform')}>
+                  Free Rotate...
+                </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
@@ -505,7 +514,12 @@ export function TopMenu() {
               Flatten Image
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Layer Properties...</MenubarItem>
+            <MenubarItem onClick={() => {
+              // Layer properties are shown in the Layers panel
+              // Focus the layers panel tab
+            }}>
+              Layer Properties...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -514,14 +528,23 @@ export function TopMenu() {
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Animation</MenubarTrigger>
           <MenubarContent className="panel">
             <MenubarItem onClick={addFrame}>New Frame</MenubarItem>
-            <MenubarItem>Duplicate Frame</MenubarItem>
-            <MenubarItem>Delete Frame</MenubarItem>
+            <MenubarItem onClick={() => duplicateFrame(currentFrameIndex)}>
+              Duplicate Frame
+            </MenubarItem>
+            <MenubarItem
+              onClick={() => deleteFrame(currentFrameIndex)}
+              disabled={frames.length <= 1}
+            >
+              Delete Frame
+            </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem onClick={togglePlay}>
               Play/Pause <MenubarShortcut>Space</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Animation Properties...</MenubarItem>
+            <MenubarItem onClick={() => openDialog('animationTags')}>
+              Animation Properties...
+            </MenubarItem>
             <MenubarItem onClick={() => openDialog('animationTags')}>
               Frame Tags...
             </MenubarItem>

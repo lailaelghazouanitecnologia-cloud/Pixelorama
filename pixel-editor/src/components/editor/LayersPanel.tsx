@@ -5,6 +5,7 @@
 
 import { useState } from "react"
 import { useEditorStore, type BlendMode, type Layer } from "@/store/editor-store"
+import { useUIStore } from "@/store/ui-store"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Plus,
@@ -25,6 +26,14 @@ import {
   Image,
   Link,
   Unlink,
+  Sun,
+  Contrast,
+  Palette,
+  Droplets,
+  Brush,
+  FlipHorizontal,
+  RotateCcw,
+  Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -452,15 +461,157 @@ export function LayersPanel() {
           </div>
         </>
       ) : (
-        /* Effects Tab - Placeholder */
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-center text-pix-text-muted">
-            <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-pix-xs">No effects applied</p>
-            <p className="text-pix-xs opacity-60">Effects coming soon</p>
-          </div>
-        </div>
+        /* Effects Tab - Quick Effects Panel */
+        <EffectsPanel />
       )}
     </div>
+  )
+}
+
+/**
+ * Quick Effects Panel - provides quick access to common effects
+ */
+function EffectsPanel() {
+  const { openDialog } = useUIStore()
+  const { layers, currentLayerIndex } = useEditorStore()
+  const currentLayer = layers[currentLayerIndex]
+
+  const QUICK_EFFECTS = [
+    { id: 'color', label: 'Color Adjustments', icon: Sun, description: 'Brightness, Contrast, HSV' },
+    { id: 'filters', label: 'Filters', icon: Sparkles, description: 'Blur, Sharpen, Noise' },
+    { id: 'stylize', label: 'Stylize', icon: Brush, description: 'Outline, Shadow, Pixelate' },
+    { id: 'transform', label: 'Transform', icon: RotateCcw, description: 'Flip, Rotate, Skew' },
+  ]
+
+  const handleOpenEffects = () => {
+    openDialog('effects')
+  }
+
+  const handleQuickEffect = (effectId: string) => {
+    // Open the effects dialog with a specific category
+    openDialog('effects', { category: effectId })
+  }
+
+  return (
+    <div className="flex-1 flex flex-col">
+      {/* Current Layer Info */}
+      <div className="px-3 py-2 border-b border-pix-border">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded border border-pix-border checker-bg flex items-center justify-center">
+            {currentLayer?.type === 'group' ? (
+              <Folder className="w-4 h-4 text-pix-accent" />
+            ) : (
+              <Image className="w-4 h-4 text-pix-text-muted" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-pix-xs font-medium truncate">{currentLayer?.name || 'No layer'}</p>
+            <p className="text-pix-xs text-pix-text-muted">Apply effects to this layer</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Effects Grid */}
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-2">
+          <p className="text-pix-xs text-pix-text-muted font-medium mb-2">Quick Effects</p>
+
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_EFFECTS.map((effect) => (
+              <button
+                key={effect.id}
+                className="flex flex-col items-center gap-1 p-3 rounded-lg border border-pix-border hover:border-pix-accent hover:bg-pix-accent/10 transition-colors group"
+                onClick={() => handleQuickEffect(effect.id)}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              >
+                <effect.icon className="w-5 h-5 text-pix-text-muted group-hover:text-pix-accent transition-colors" />
+                <span className="text-pix-xs font-medium text-pix-text">{effect.label}</span>
+                <span className="text-pix-xs text-pix-text-muted text-center leading-tight">{effect.description}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Common Quick Actions */}
+          <div className="pt-3 border-t border-pix-border mt-3">
+            <p className="text-pix-xs text-pix-text-muted font-medium mb-2">Quick Actions</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <QuickActionButton
+                icon={FlipHorizontal}
+                label="Flip H"
+                onClick={() => openDialog('effects', { effect: 'flipHorizontal' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+              <QuickActionButton
+                icon={RotateCcw}
+                label="Rotate"
+                onClick={() => openDialog('effects', { effect: 'rotate90CW' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+              <QuickActionButton
+                icon={Contrast}
+                label="Invert"
+                onClick={() => openDialog('effects', { effect: 'invert' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+              <QuickActionButton
+                icon={Droplets}
+                label="Blur"
+                onClick={() => openDialog('effects', { effect: 'gaussianBlur' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+              <QuickActionButton
+                icon={Palette}
+                label="Grayscale"
+                onClick={() => openDialog('effects', { effect: 'desaturate' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+              <QuickActionButton
+                icon={Zap}
+                label="Sharpen"
+                onClick={() => openDialog('effects', { effect: 'sharpen' })}
+                disabled={!currentLayer || currentLayer.type === 'group'}
+              />
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+
+      {/* Open Full Effects Dialog Button */}
+      <div className="px-3 py-2 border-t border-pix-border">
+        <button
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-pix-accent hover:bg-pix-accent-hover text-white text-pix-xs font-medium transition-colors"
+          onClick={handleOpenEffects}
+          disabled={!currentLayer || currentLayer.type === 'group'}
+        >
+          <Sparkles className="w-4 h-4" />
+          Open Effects Panel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface QuickActionButtonProps {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}
+
+function QuickActionButton({ icon: Icon, label, onClick, disabled }: QuickActionButtonProps) {
+  return (
+    <button
+      className={cn(
+        "flex flex-col items-center gap-1 p-2 rounded border border-pix-border transition-colors",
+        disabled
+          ? "opacity-50 cursor-not-allowed"
+          : "hover:border-pix-accent hover:bg-pix-accent/10"
+      )}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <Icon className="w-4 h-4 text-pix-text-muted" />
+      <span className="text-pix-xs text-pix-text">{label}</span>
+    </button>
   )
 }

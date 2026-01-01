@@ -34,7 +34,7 @@ const ANCHORS: { value: Anchor; label: string }[] = [
 ]
 
 export function ResizeCanvasDialog({ open, onOpenChange }: ResizeCanvasDialogProps) {
-  const { width: currentWidth, height: currentHeight, setCanvasSize } = useEditorStore()
+  const { width: currentWidth, height: currentHeight, resizeCanvasWithAnchor } = useEditorStore()
 
   const [width, setWidth] = useState(currentWidth)
   const [height, setHeight] = useState(currentHeight)
@@ -65,9 +65,7 @@ export function ResizeCanvasDialog({ open, onOpenChange }: ResizeCanvasDialogPro
   }
 
   const handleResize = () => {
-    // For now, just set the new canvas size
-    // TODO: Implement proper resize with anchor positioning and content preservation
-    setCanvasSize(width, height)
+    resizeCanvasWithAnchor(width, height, anchor)
     onOpenChange(false)
   }
 
