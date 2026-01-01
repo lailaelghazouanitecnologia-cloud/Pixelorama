@@ -86,7 +86,7 @@ export class LineTool extends BaseDrawTool {
 
 // Register the tool
 export const LineToolDefinition = defineToolWithFactory(
-  'LineTool',
+  'line',
   'Line',
   'minus',
   'design',

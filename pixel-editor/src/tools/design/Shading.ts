@@ -143,7 +143,7 @@ export class ShadingTool extends BaseDrawTool {
 
 // Register the tool
 export const ShadingDefinition = defineToolWithFactory(
-  'Shading',
+  'shading',
   'Shading',
   'sun', // Icon name
   'design',

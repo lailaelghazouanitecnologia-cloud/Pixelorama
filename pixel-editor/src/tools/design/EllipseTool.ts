@@ -122,7 +122,7 @@ export class EllipseTool extends BaseDrawTool {
 
 // Register the tool
 export const EllipseToolDefinition = defineToolWithFactory(
-  'EllipseTool',
+  'ellipse',
   'Ellipse',
   'circle',
   'design',

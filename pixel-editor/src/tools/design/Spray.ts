@@ -113,7 +113,7 @@ export class SprayTool extends BaseDrawTool {
 
 // Register the tool
 export const SprayDefinition = defineToolWithFactory(
-  'Spray',
+  'spray',
   'Spray',
   'spray-can', // Icon name
   'design',

@@ -105,7 +105,7 @@ export class BucketTool extends BaseTool {
 
 // Register the tool
 export const BucketDefinition = defineToolWithFactory(
-  'Bucket',
+  'bucket',
   'Bucket Fill',
   'paint-bucket',
   'design',

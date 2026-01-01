@@ -15,7 +15,7 @@ export class PencilTool extends BaseDrawTool {
 
 // Register the tool
 export const PencilDefinition = defineToolWithFactory(
-  'Pencil',
+  'pencil',
   'Pencil',
   'pencil',
   'design',

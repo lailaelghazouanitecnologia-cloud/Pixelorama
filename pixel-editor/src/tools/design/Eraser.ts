@@ -15,7 +15,7 @@ export class EraserTool extends BaseDrawTool {
 
 // Register the tool
 export const EraserDefinition = defineToolWithFactory(
-  'Eraser',
+  'eraser',
   'Eraser',
   'eraser',
   'design',

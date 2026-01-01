@@ -110,7 +110,7 @@ export class RectangleTool extends BaseDrawTool {
 
 // Register the tool
 export const RectangleToolDefinition = defineToolWithFactory(
-  'RectangleTool',
+  'rectangle',
   'Rectangle',
   'square',
   'design',
