@@ -64,6 +64,13 @@ export function TopMenu() {
     clearSelection,
     selection,
     cropToSelection,
+    flipHorizontal,
+    flipVertical,
+    rotate90CW,
+    rotate90CCW,
+    rotate180,
+    mirrorView,
+    toggleMirrorView,
   } = useEditorStore()
 
   const history = getHistory()
@@ -92,6 +99,13 @@ export function TopMenu() {
     const canvas = document.querySelector('canvas') as HTMLCanvasElement
     if (canvas) {
       downloadCanvas(canvas, projectName || 'untitled', { format: 'jpeg', quality: 0.9 })
+    }
+  }, [projectName])
+
+  const handleExportWebP = useCallback(() => {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement
+    if (canvas) {
+      downloadCanvas(canvas, projectName || 'untitled', { format: 'webp', quality: 0.9 })
     }
   }, [projectName])
 
@@ -135,7 +149,7 @@ export function TopMenu() {
               <MenubarSubContent className="panel">
                 <MenubarItem onClick={handleExportPNG}>PNG</MenubarItem>
                 <MenubarItem onClick={handleExportJPEG}>JPEG</MenubarItem>
-                <MenubarItem>WebP</MenubarItem>
+                <MenubarItem onClick={handleExportWebP}>WebP</MenubarItem>
                 <MenubarSeparator className="separator" />
                 <MenubarItem onClick={() => openDialog('spritesheet')}>Spritesheet...</MenubarItem>
                 <MenubarItem>GIF Animation...</MenubarItem>
@@ -239,7 +253,9 @@ export function TopMenu() {
                 <MenubarItem onClick={clearGuides}>Clear All Guides</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
-            <MenubarItem>Mirror View</MenubarItem>
+            <MenubarCheckboxItem checked={mirrorView} onClick={toggleMirrorView}>
+              Mirror View
+            </MenubarCheckboxItem>
           </MenubarContent>
         </MenubarMenu>
 
@@ -248,7 +264,7 @@ export function TopMenu() {
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">Image</MenubarTrigger>
           <MenubarContent className="panel">
             <MenubarItem onClick={() => openDialog('resizeCanvas')}>Resize Canvas...</MenubarItem>
-            <MenubarItem>Scale Image...</MenubarItem>
+            <MenubarItem onClick={() => openDialog('scaleImage')}>Scale Image...</MenubarItem>
             <MenubarItem
               onClick={cropToSelection}
               disabled={!selection.active}
@@ -256,14 +272,14 @@ export function TopMenu() {
               Crop to Selection
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>Flip Horizontal</MenubarItem>
-            <MenubarItem>Flip Vertical</MenubarItem>
+            <MenubarItem onClick={flipHorizontal}>Flip Horizontal</MenubarItem>
+            <MenubarItem onClick={flipVertical}>Flip Vertical</MenubarItem>
             <MenubarSub>
               <MenubarSubTrigger>Rotate</MenubarSubTrigger>
               <MenubarSubContent className="panel">
-                <MenubarItem>90° Clockwise</MenubarItem>
-                <MenubarItem>90° Counter-clockwise</MenubarItem>
-                <MenubarItem>180°</MenubarItem>
+                <MenubarItem onClick={rotate90CW}>90° Clockwise</MenubarItem>
+                <MenubarItem onClick={rotate90CCW}>90° Counter-clockwise</MenubarItem>
+                <MenubarItem onClick={rotate180}>180°</MenubarItem>
                 <MenubarItem>Free Rotate...</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>

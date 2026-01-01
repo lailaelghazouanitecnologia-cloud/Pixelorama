@@ -216,6 +216,18 @@ export interface EditorState {
   cropCanvas: (x: number, y: number, newWidth: number, newHeight: number) => void
   cropToSelection: () => void
 
+  // Image transformations
+  flipHorizontal: () => void
+  flipVertical: () => void
+  rotate90CW: () => void
+  rotate90CCW: () => void
+  rotate180: () => void
+  scaleImage: (newWidth: number, newHeight: number, interpolation?: 'nearest' | 'bilinear') => void
+
+  // View
+  mirrorView: boolean
+  toggleMirrorView: () => void
+
   // Guides
   addGuide: (type: 'horizontal' | 'vertical', position: number, color?: string) => void
   removeGuide: (id: string) => void
@@ -329,6 +341,7 @@ export const useEditorStore = create<EditorState>()(
     snapToGuides: true,
     gridSize: 8,
     guides: [],
+    mirrorView: false,
 
     // === Actions ===
 
@@ -912,6 +925,232 @@ export const useEditorStore = create<EditorState>()(
         },
       })
     },
+
+    // Image transformations
+    flipHorizontal: () => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+
+        // Put original data
+        ctx.putImageData(layer.data, 0, 0)
+
+        // Flip horizontally
+        const flippedCanvas = document.createElement('canvas')
+        flippedCanvas.width = width
+        flippedCanvas.height = height
+        const flippedCtx = flippedCanvas.getContext('2d')!
+        flippedCtx.translate(width, 0)
+        flippedCtx.scale(-1, 1)
+        flippedCtx.drawImage(canvas, 0, 0)
+
+        return {
+          ...layer,
+          data: flippedCtx.getImageData(0, 0, width, height),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({ frames: newFrames, modified: true })
+    },
+
+    flipVertical: () => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(layer.data, 0, 0)
+
+        const flippedCanvas = document.createElement('canvas')
+        flippedCanvas.width = width
+        flippedCanvas.height = height
+        const flippedCtx = flippedCanvas.getContext('2d')!
+        flippedCtx.translate(0, height)
+        flippedCtx.scale(1, -1)
+        flippedCtx.drawImage(canvas, 0, 0)
+
+        return {
+          ...layer,
+          data: flippedCtx.getImageData(0, 0, width, height),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({ frames: newFrames, modified: true })
+    },
+
+    rotate90CW: () => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(layer.data, 0, 0)
+
+        // Rotated canvas has swapped dimensions
+        const rotatedCanvas = document.createElement('canvas')
+        rotatedCanvas.width = height
+        rotatedCanvas.height = width
+        const rotatedCtx = rotatedCanvas.getContext('2d')!
+        rotatedCtx.translate(height, 0)
+        rotatedCtx.rotate(Math.PI / 2)
+        rotatedCtx.drawImage(canvas, 0, 0)
+
+        return {
+          ...layer,
+          data: rotatedCtx.getImageData(0, 0, height, width),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      // Swap dimensions
+      set({ width: height, height: width, frames: newFrames, modified: true })
+    },
+
+    rotate90CCW: () => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(layer.data, 0, 0)
+
+        const rotatedCanvas = document.createElement('canvas')
+        rotatedCanvas.width = height
+        rotatedCanvas.height = width
+        const rotatedCtx = rotatedCanvas.getContext('2d')!
+        rotatedCtx.translate(0, width)
+        rotatedCtx.rotate(-Math.PI / 2)
+        rotatedCtx.drawImage(canvas, 0, 0)
+
+        return {
+          ...layer,
+          data: rotatedCtx.getImageData(0, 0, height, width),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({ width: height, height: width, frames: newFrames, modified: true })
+    },
+
+    rotate180: () => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(layer.data, 0, 0)
+
+        const rotatedCanvas = document.createElement('canvas')
+        rotatedCanvas.width = width
+        rotatedCanvas.height = height
+        const rotatedCtx = rotatedCanvas.getContext('2d')!
+        rotatedCtx.translate(width, height)
+        rotatedCtx.rotate(Math.PI)
+        rotatedCtx.drawImage(canvas, 0, 0)
+
+        return {
+          ...layer,
+          data: rotatedCtx.getImageData(0, 0, width, height),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({ frames: newFrames, modified: true })
+    },
+
+    scaleImage: (newWidth, newHeight, interpolation = 'nearest') => {
+      const state = get()
+      const { width, height, layers, frames, currentFrameIndex } = state
+
+      if (newWidth <= 0 || newHeight <= 0) return
+
+      const newLayers = layers.map(layer => {
+        if (!layer.data) return layer
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(layer.data, 0, 0)
+
+        const scaledCanvas = document.createElement('canvas')
+        scaledCanvas.width = newWidth
+        scaledCanvas.height = newHeight
+        const scaledCtx = scaledCanvas.getContext('2d')!
+        scaledCtx.imageSmoothingEnabled = interpolation === 'bilinear'
+        scaledCtx.drawImage(canvas, 0, 0, newWidth, newHeight)
+
+        return {
+          ...layer,
+          data: scaledCtx.getImageData(0, 0, newWidth, newHeight),
+        }
+      })
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({ width: newWidth, height: newHeight, frames: newFrames, modified: true })
+    },
+
+    // Mirror view toggle
+    toggleMirrorView: () => set((state) => ({ mirrorView: !state.mirrorView })),
 
     // Guides
     addGuide: (type, position, color = '#00ffff') => set((state) => ({

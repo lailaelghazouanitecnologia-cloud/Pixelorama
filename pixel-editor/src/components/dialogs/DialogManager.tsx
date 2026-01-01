@@ -21,6 +21,7 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   exportImage: lazy(() => import('./ExportDialog').then(m => ({ default: m.ExportDialog }))),
   importImage: lazy(() => import('./ImportDialog').then(m => ({ default: m.ImportDialog }))),
   resizeCanvas: lazy(() => import('./ResizeCanvasDialog').then(m => ({ default: m.ResizeCanvasDialog }))),
+  scaleImage: lazy(() => import('./ScaleImageDialog').then(m => ({ default: m.ScaleImageDialog }))),
   effects: lazy(() => import('./EffectsDialog').then(m => ({ default: m.EffectsDialog }))),
   animationTags: lazy(() => import('./AnimationTagsDialog').then(m => ({ default: m.AnimationTagsDialog }))),
   spritesheet: lazy(() => import('./SpritesheetDialog').then(m => ({ default: m.SpritesheetDialog }))),
