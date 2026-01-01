@@ -420,6 +420,10 @@ export function TopMenu() {
                 <MenubarItem onClick={addThirdsGuides}>Add Thirds Guides</MenubarItem>
                 <MenubarSeparator className="separator" />
                 <MenubarItem onClick={clearGuides}>Clear All Guides</MenubarItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem onClick={() => openDialog('guidesSettings')}>
+                  Guides Settings...
+                </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSub>

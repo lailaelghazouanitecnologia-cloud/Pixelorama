@@ -28,6 +28,7 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   onionSkin: lazy(() => import('./OnionSkinDialog').then(m => ({ default: m.OnionSkinDialog }))),
   isometricGrid: lazy(() => import('./IsometricGridDialog').then(m => ({ default: m.IsometricGridDialog }))),
   gridSettings: lazy(() => import('./GridSettingsDialog').then(m => ({ default: m.GridSettingsDialog }))),
+  guidesSettings: lazy(() => import('./GuidesSettingsDialog').then(m => ({ default: m.GuidesSettingsDialog }))),
   selectionModify: lazy(() => import('./SelectionModifyDialog').then(m => ({ default: m.SelectionModifyDialogWrapper }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),
   preferences: lazy(() => import('./PreferencesDialog').then(m => ({ default: m.PreferencesDialog }))),
