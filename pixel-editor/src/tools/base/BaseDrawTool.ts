@@ -10,6 +10,8 @@ import { DEFAULT_BRUSH_SIZE, DEFAULT_BRUSH_OPACITY } from '@/core/constants'
 import { bresenhamLine } from '@/lib/drawing'
 import { useToolsStore } from '@/store/tools-store'
 import { shouldDrawDithered } from '@/core/dithering'
+import { getHistory } from '@/core/history'
+import { useEditorStore } from '@/store/editor-store'
 
 // ============================================================================
 // Draw Tool Config
@@ -437,11 +439,58 @@ export abstract class BaseDrawTool extends BaseTool {
 
   /**
    * Commit undo data after drawing.
-   * This would integrate with a history system.
+   * Integrates with the global history system for undo/redo.
    */
-  protected commitUndo(_ctx: DrawingContext): void {
-    // TODO: Integrate with history system
-    // For now, just clear the undo data
+  protected commitUndo(ctx: DrawingContext): void {
+    if (!this.undoImageData) return
+
+    const { ctx: context, canvas } = ctx
+    const afterImageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    const beforeImageData = this.undoImageData
+
+    // Only add to history if there were actual changes
+    let hasChanges = false
+    const beforeData = beforeImageData.data
+    const afterData = afterImageData.data
+    for (let i = 0; i < beforeData.length; i++) {
+      if (beforeData[i] !== afterData[i]) {
+        hasChanges = true
+        break
+      }
+    }
+
+    if (hasChanges) {
+      const history = getHistory()
+      const { updateHistoryState } = useEditorStore.getState()
+
+      // Create copies of the image data for the closures
+      const beforeCopy = new ImageData(
+        new Uint8ClampedArray(beforeImageData.data),
+        beforeImageData.width,
+        beforeImageData.height
+      )
+      const afterCopy = new ImageData(
+        new Uint8ClampedArray(afterImageData.data),
+        afterImageData.width,
+        afterImageData.height
+      )
+
+      history.addAction(
+        `${this.getName()} Stroke`,
+        () => {
+          // Undo - restore before state
+          context.putImageData(beforeCopy, 0, 0)
+        },
+        () => {
+          // Redo - restore after state
+          context.putImageData(afterCopy, 0, 0)
+        }
+      )
+
+      // Update editor store history state
+      updateHistoryState()
+    }
+
     this.undoImageData = null
   }
 
