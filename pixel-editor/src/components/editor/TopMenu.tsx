@@ -372,6 +372,9 @@ export function TopMenu() {
             <MenubarCheckboxItem checked={showGrid} onClick={toggleGrid}>
               Show Grid <MenubarShortcut>Ctrl+G</MenubarShortcut>
             </MenubarCheckboxItem>
+            <MenubarItem onClick={() => openDialog('gridSettings')}>
+              Grid Settings...
+            </MenubarItem>
             <MenubarSub>
               <MenubarSubTrigger>Grid Type</MenubarSubTrigger>
               <MenubarSubContent className="panel">
