@@ -572,6 +572,43 @@ export function Canvas() {
     }
   }, [width, height, setPrimaryColor, setSecondaryColor, composite])
 
+  // Draw ellipse using midpoint algorithm
+  const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string, isFilled: boolean = false) => {
+    if (rx <= 0 || ry <= 0) return
+
+    ctx.fillStyle = color
+    const setPixel = (x: number, y: number) => {
+      if (x >= 0 && x < width && y >= 0 && y < height) {
+        ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1)
+      }
+    }
+
+    if (isFilled) {
+      // Filled ellipse - scan through bounding box
+      const floorCx = Math.floor(cx)
+      const floorCy = Math.floor(cy)
+      const floorRx = Math.floor(rx)
+      const floorRy = Math.floor(ry)
+      for (let dy = -floorRy; dy <= floorRy; dy++) {
+        for (let dx = -floorRx; dx <= floorRx; dx++) {
+          // Check if point is inside ellipse
+          const nx = dx / (floorRx || 1)
+          const ny = dy / (floorRy || 1)
+          if (nx * nx + ny * ny <= 1) {
+            setPixel(floorCx + dx, floorCy + dy)
+          }
+        }
+      }
+    } else {
+      // Outline ellipse
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
+        const x = cx + rx * Math.cos(angle)
+        const y = cy + ry * Math.sin(angle)
+        setPixel(x, y)
+      }
+    }
+  }, [width, height])
+
   // Draw shape preview on the preview canvas
   const drawShapePreview = useCallback((start: Point, end: Point, tool: string, color: string) => {
     const layerCtx = getCurrentLayerCtx()
@@ -660,43 +697,6 @@ export function Canvas() {
       displayCtx.drawImage(composited, 0, 0)
     }
   }, [composite, width, height])
-
-  // Draw ellipse using midpoint algorithm
-  const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string, isFilled: boolean = false) => {
-    if (rx <= 0 || ry <= 0) return
-
-    ctx.fillStyle = color
-    const setPixel = (x: number, y: number) => {
-      if (x >= 0 && x < width && y >= 0 && y < height) {
-        ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1)
-      }
-    }
-
-    if (isFilled) {
-      // Filled ellipse - scan through bounding box
-      const floorCx = Math.floor(cx)
-      const floorCy = Math.floor(cy)
-      const floorRx = Math.floor(rx)
-      const floorRy = Math.floor(ry)
-      for (let dy = -floorRy; dy <= floorRy; dy++) {
-        for (let dx = -floorRx; dx <= floorRx; dx++) {
-          // Check if point is inside ellipse
-          const nx = dx / (floorRx || 1)
-          const ny = dy / (floorRy || 1)
-          if (nx * nx + ny * ny <= 1) {
-            setPixel(floorCx + dx, floorCy + dy)
-          }
-        }
-      }
-    } else {
-      // Outline ellipse
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
-        const x = cx + rx * Math.cos(angle)
-        const y = cy + ry * Math.sin(angle)
-        setPixel(x, y)
-      }
-    }
-  }, [width, height])
 
   // Handle pointer down
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
