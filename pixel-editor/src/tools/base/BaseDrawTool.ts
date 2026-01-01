@@ -8,6 +8,7 @@ import { BaseTool } from './BaseTool'
 import type { Point, ToolConfig, CanvasMouseEvent, DrawingContext, BrushConfig } from '@/core/types'
 import { DEFAULT_BRUSH_SIZE, DEFAULT_BRUSH_OPACITY } from '@/core/constants'
 import { bresenhamLine } from '@/lib/drawing'
+import { useToolsStore } from '@/store/tools-store'
 
 // ============================================================================
 // Draw Tool Config
@@ -256,10 +257,47 @@ export abstract class BaseDrawTool extends BaseTool {
   // ============================================================================
 
   /**
-   * Draw brush at a single point.
+   * Draw brush at a single point with symmetry support.
    */
   protected drawBrush(pos: Point, ctx: DrawingContext): void {
     const { ctx: context, canvas } = ctx
+    const { mirrorH, mirrorV } = useToolsStore.getState()
+
+    // Calculate all positions to draw (original + mirrored)
+    const positions: Point[] = [pos]
+
+    if (mirrorH) {
+      const mirroredX = canvas.width - 1 - pos.x
+      positions.push({ x: mirroredX, y: pos.y })
+    }
+
+    if (mirrorV) {
+      const mirroredY = canvas.height - 1 - pos.y
+      positions.push({ x: pos.x, y: mirroredY })
+    }
+
+    if (mirrorH && mirrorV) {
+      const mirroredX = canvas.width - 1 - pos.x
+      const mirroredY = canvas.height - 1 - pos.y
+      positions.push({ x: mirroredX, y: mirroredY })
+    }
+
+    // Draw at all positions
+    for (const drawPos of positions) {
+      this.drawBrushAt(drawPos, context, ctx, canvas.width, canvas.height)
+    }
+  }
+
+  /**
+   * Draw brush at a specific position (internal method).
+   */
+  private drawBrushAt(
+    pos: Point,
+    context: CanvasRenderingContext2D,
+    ctx: DrawingContext,
+    canvasWidth: number,
+    canvasHeight: number
+  ): void {
     const halfSize = Math.floor(this.brushSize / 2)
 
     for (let dy = 0; dy < this.brushSize; dy++) {
@@ -268,7 +306,7 @@ export abstract class BaseDrawTool extends BaseTool {
         const py = pos.y - halfSize + dy
 
         // Bounds check
-        if (px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) {
+        if (px < 0 || px >= canvasWidth || py < 0 || py >= canvasHeight) {
           continue
         }
 

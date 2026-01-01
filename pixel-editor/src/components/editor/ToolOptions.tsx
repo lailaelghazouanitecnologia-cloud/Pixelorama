@@ -66,6 +66,7 @@ export function ToolOptions() {
   const showShadingOptions = currentTool === 'shading'
   const showSprayOptions = currentTool === 'spray'
   const showSelectionOptions = ['rectSelect', 'ellipseSelect', 'magicWand', 'lasso'].includes(currentTool)
+  const showMirrorOptions = ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'spray', 'shading'].includes(currentTool)
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -192,9 +193,13 @@ export function ToolOptions() {
                 />
               </div>
             )}
+          </>
+        )}
 
+        {/* Mirror/Symmetry options for all drawing tools */}
+        {showMirrorOptions && (
+          <>
             <div className="separator-v h-4" />
-
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
