@@ -1,20 +1,22 @@
 /**
  * Canvas Component - Main drawing area
  * Based on Pixelorama's Canvas structure
+ * Now delegates drawing operations to ToolManager
  */
 
 import { useRef, useEffect, useState, useCallback } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { getHistory, captureCanvasState } from "@/core/history"
-import { ToolRegistry } from "@/tools/registry"
-import { bresenhamLine, floodFill, hexToRgb } from "@/lib/drawing"
+import { ToolManager } from "@/tools/ToolManager"
+import { bresenhamLine } from "@/lib/drawing"
 import { useSelection } from "@/hooks/useSelection"
 import { SelectionOperation, type SelectionRect } from "@/core/selection"
 import { useLayerCanvas } from "@/hooks/useLayerCanvas"
 import { compositeFrameLayers } from "@/core/layerCanvas"
 import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/core/onionSkin"
+import type { DrawingContext } from "@/core/types"
 
-// Import and register tools
+// Import and register tools (side effects)
 import "@/tools/design/Pencil"
 import "@/tools/design/Eraser"
 import "@/tools/design/Bucket"
@@ -43,15 +45,13 @@ export function Canvas() {
   const onionSkinCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [lastPoint, setLastPoint] = useState<Point | null>(null)
   const [shapeStart, setShapeStart] = useState<Point | null>(null)
   const [preDrawImageData, setPreDrawImageData] = useState<ImageData | null>(null)
   const [selectionPreview, setSelectionPreview] = useState<SelectionRect | null>(null)
   const [onionSkinSettings, setOnionSkinSettings] = useState<OnionSkinSettings>(getOnionSkinManager().getSettings())
-  const lastSpacingPosRef = useRef<Point | null>(null)
 
   // Layer canvas system
-  const { getCurrentLayerCtx, getCurrentLayer, composite, saveCurrentLayerData, getManager } = useLayerCanvas()
+  const { getCurrentLayerCtx, getCurrentLayer, composite, saveCurrentLayerData } = useLayerCanvas()
 
   // Subscribe to onion skin settings changes
   useEffect(() => {
@@ -67,7 +67,6 @@ export function Canvas() {
     panX,
     panY,
     pan,
-    setZoom,
     zoomIn,
     zoomOut,
     currentTool,
@@ -79,34 +78,16 @@ export function Canvas() {
     currentLayerIndex,
     frames,
     currentFrameIndex,
-    setPrimaryColor,
-    setSecondaryColor,
     history,
-    selection,
-    bucketTolerance,
-    overwrite,
-    spacingMode,
-    spacing,
     filled,
-    shadingMode,
-    shadingAmount,
-    mirrorH,
-    mirrorV,
-    sprayDensity,
-    sprayRadius,
   } = useEditorStore()
 
   // Selection management
   const {
-    hasSelection,
     selectRect,
     selectEllipse,
     selectMask,
-    selectAll: doSelectAll,
     clearSelection,
-    invertSelection,
-    isSelected,
-    getMask,
   } = useSelection({
     canvas: displayCanvasRef.current,
     overlayCanvas: selectionCanvasRef.current,
@@ -128,7 +109,6 @@ export function Canvas() {
       return mask
     }
 
-    // Get target color
     const targetIndex = (startY * w + startX) * 4
     const targetR = data[targetIndex]
     const targetG = data[targetIndex + 1]
@@ -168,6 +148,35 @@ export function Canvas() {
     return mask
   }, [])
 
+  // Update display canvas with composited layers
+  const updateDisplay = useCallback(() => {
+    const displayCanvas = displayCanvasRef.current
+    if (!displayCanvas) return
+
+    const displayCtx = displayCanvas.getContext("2d")
+    if (!displayCtx) return
+
+    const composited = composite()
+    if (composited) {
+      displayCtx.clearRect(0, 0, width, height)
+      displayCtx.drawImage(composited, 0, 0)
+    }
+  }, [composite, width, height])
+
+  // Initialize ToolManager callbacks
+  useEffect(() => {
+    ToolManager.setCallbacks({
+      onUpdateDisplay: updateDisplay,
+      onSaveLayerData: saveCurrentLayerData,
+      onAddToHistory: (name, before, after) => {
+        const currentLayerCanvas = getCurrentLayer()
+        if (currentLayerCanvas) {
+          history.addImageAction(name, currentLayerCanvas.canvas, before, after)
+        }
+      },
+    })
+  }, [updateDisplay, saveCurrentLayerData, getCurrentLayer, history])
+
   // Initialize display canvas and composite layers
   useEffect(() => {
     const displayCanvas = displayCanvasRef.current
@@ -176,10 +185,8 @@ export function Canvas() {
     const ctx = displayCanvas.getContext("2d")
     if (!ctx) return
 
-    // Set up for pixel art
     ctx.imageSmoothingEnabled = false
 
-    // Composite all layers and draw to display
     const composited = composite()
     if (composited) {
       ctx.clearRect(0, 0, width, height)
@@ -198,15 +205,12 @@ export function Canvas() {
     ctx.imageSmoothingEnabled = false
     ctx.clearRect(0, 0, width, height)
 
-    // Only render if enabled and we have frames
     if (!onionSkinSettings.enabled || frames.length === 0) return
 
-    // Composite each frame's layers into ImageData for onion skinning
     const frameImageData: (ImageData | null)[] = frames.map(frame =>
       compositeFrameLayers(width, height, frame.layers)
     )
 
-    // Render onion skin
     renderOnionSkin(ctx, currentFrameIndex, frameImageData, onionSkinSettings)
   }, [width, height, frames, currentFrameIndex, onionSkinSettings])
 
@@ -225,408 +229,36 @@ export function Canvas() {
     }
   }, [width, height])
 
-  // Draw single pixel or brush with mirror support
-  const drawPixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, color: string, size: number = brushSize) => {
-    const layer = layers[currentLayerIndex]
-    if (!layer.visible || layer.locked) return
+  // Check if tool is handled by ToolManager
+  const isToolManagedTool = (tool: string): boolean => {
+    return ['pencil', 'eraser', 'bucket', 'shading', 'spray', 'colorPicker'].includes(tool)
+  }
 
-    ctx.fillStyle = color
+  // Get DrawingContext for ToolManager
+  const getDrawingContext = useCallback((): DrawingContext | null => {
+    const layerCanvas = getCurrentLayer()
+    const layerCtx = getCurrentLayerCtx()
+    if (!layerCanvas || !layerCtx) return null
 
-    const drawSinglePixel = (px: number, py: number) => {
-      if (px >= 0 && px < width && py >= 0 && py < height) {
-        if (overwrite) {
-          // Overwrite mode: clear first, then draw
-          ctx.clearRect(px, py, 1, 1)
-        }
-        ctx.fillRect(px, py, 1, 1)
-      }
+    return {
+      ctx: layerCtx,
+      canvas: layerCanvas.canvas,
+      color: primaryColor,
+      width,
+      height,
     }
+  }, [getCurrentLayer, getCurrentLayerCtx, primaryColor, width, height])
 
-    // Calculate center of canvas for mirroring
-    const centerX = width / 2
-    const centerY = height / 2
-
-    // Get all positions to draw (including mirrored)
-    const getPositions = (baseX: number, baseY: number): Point[] => {
-      const positions: Point[] = [{ x: baseX, y: baseY }]
-
-      if (mirrorH) {
-        // Mirror horizontally around center
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        positions.push({ x: mirroredX, y: baseY })
-      }
-
-      if (mirrorV) {
-        // Mirror vertically around center
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: baseX, y: mirroredY })
-      }
-
-      if (mirrorH && mirrorV) {
-        // Mirror both (corner mirror)
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: mirroredX, y: mirroredY })
-      }
-
-      return positions
-    }
-
-    if (size === 1) {
-      const positions = getPositions(x, y)
-      positions.forEach(p => drawSinglePixel(p.x, p.y))
-    } else {
-      const halfSize = Math.floor(size / 2)
-      for (let dx = 0; dx < size; dx++) {
-        for (let dy = 0; dy < size; dy++) {
-          const px = x - halfSize + dx
-          const py = y - halfSize + dy
-          const positions = getPositions(px, py)
-          positions.forEach(p => drawSinglePixel(p.x, p.y))
-        }
-      }
-    }
-  }, [brushSize, width, height, layers, currentLayerIndex, overwrite, mirrorH, mirrorV])
-
-  // Apply shading (lighten/darken) to pixels with mirror support
-  const shadePixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number = brushSize) => {
-    const layer = layers[currentLayerIndex]
-    if (!layer.visible || layer.locked) return
-
-    const factor = shadingAmount / 100
-    const centerX = width / 2
-    const centerY = height / 2
-
-    const applyShadingToPixel = (px: number, py: number) => {
-      if (px < 0 || px >= width || py < 0 || py >= height) return
-
-      // Get current pixel color
-      const imageData = ctx.getImageData(px, py, 1, 1)
-      const data = imageData.data
-
-      // Skip if pixel is fully transparent
-      if (data[3] === 0) return
-
-      // Get RGB values
-      let r = data[0]
-      let g = data[1]
-      let b = data[2]
-
-      // Apply lighten/darken
-      if (shadingMode === 'lighten') {
-        // Lighten: blend towards white
-        r = Math.min(255, r + (255 - r) * factor)
-        g = Math.min(255, g + (255 - g) * factor)
-        b = Math.min(255, b + (255 - b) * factor)
-      } else {
-        // Darken: blend towards black
-        r = Math.max(0, r * (1 - factor))
-        g = Math.max(0, g * (1 - factor))
-        b = Math.max(0, b * (1 - factor))
-      }
-
-      // Set new color
-      data[0] = Math.round(r)
-      data[1] = Math.round(g)
-      data[2] = Math.round(b)
-
-      ctx.putImageData(imageData, px, py)
-    }
-
-    // Get all positions to shade (including mirrored)
-    const getPositions = (baseX: number, baseY: number): Point[] => {
-      const positions: Point[] = [{ x: baseX, y: baseY }]
-
-      if (mirrorH) {
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        positions.push({ x: mirroredX, y: baseY })
-      }
-
-      if (mirrorV) {
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: baseX, y: mirroredY })
-      }
-
-      if (mirrorH && mirrorV) {
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: mirroredX, y: mirroredY })
-      }
-
-      return positions
-    }
-
-    if (size === 1) {
-      const positions = getPositions(x, y)
-      positions.forEach(p => applyShadingToPixel(p.x, p.y))
-    } else {
-      const halfSize = Math.floor(size / 2)
-      for (let dx = 0; dx < size; dx++) {
-        for (let dy = 0; dy < size; dy++) {
-          const px = x - halfSize + dx
-          const py = y - halfSize + dy
-          const positions = getPositions(px, py)
-          positions.forEach(p => applyShadingToPixel(p.x, p.y))
-        }
-      }
-    }
-  }, [brushSize, width, height, layers, currentLayerIndex, shadingMode, shadingAmount, mirrorH, mirrorV])
-
-  // Draw shading line using Bresenham
-  const drawShadingLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, size: number = brushSize) => {
-    const points = bresenhamLine(from.x, from.y, to.x, to.y)
-    points.forEach(p => {
-      shadePixel(ctx, p.x, p.y, size)
-    })
-  }, [shadePixel, brushSize])
-
-  // Erase pixel or brush area with mirror support
-  const erasePixel = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, size: number = brushSize) => {
-    const layer = layers[currentLayerIndex]
-    if (!layer.visible || layer.locked) return
-
-    const centerX = width / 2
-    const centerY = height / 2
-    const halfSize = Math.floor(size / 2)
-
-    const doErase = (px: number, py: number) => {
-      ctx.clearRect(px - halfSize, py - halfSize, size, size)
-    }
-
-    // Get all positions to erase (including mirrored)
-    const positions: Point[] = [{ x, y }]
-
-    if (mirrorH) {
-      const mirroredX = Math.floor(2 * centerX - x - 1)
-      positions.push({ x: mirroredX, y })
-    }
-
-    if (mirrorV) {
-      const mirroredY = Math.floor(2 * centerY - y - 1)
-      positions.push({ x, y: mirroredY })
-    }
-
-    if (mirrorH && mirrorV) {
-      const mirroredX = Math.floor(2 * centerX - x - 1)
-      const mirroredY = Math.floor(2 * centerY - y - 1)
-      positions.push({ x: mirroredX, y: mirroredY })
-    }
-
-    positions.forEach(p => doErase(p.x, p.y))
-  }, [brushSize, width, height, layers, currentLayerIndex, mirrorH, mirrorV])
-
-  // Erase line using Bresenham with mirror support
-  const eraseLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, size: number = brushSize) => {
-    const points = bresenhamLine(from.x, from.y, to.x, to.y)
-    points.forEach(p => {
-      erasePixel(ctx, p.x, p.y, size)
-    })
-  }, [erasePixel, brushSize])
-
-  // Track processed spray pixels per stroke
-  const sprayProcessedRef = useRef<Set<string>>(new Set())
-
-  // Spray random pixels with mirror support
-  const sprayPixels = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, color: string) => {
-    const layer = layers[currentLayerIndex]
-    if (!layer.visible || layer.locked) return
-
-    ctx.fillStyle = color
-    const centerX = width / 2
-    const centerY = height / 2
-
-    const drawSprayPixel = (px: number, py: number) => {
-      if (px >= 0 && px < width && py >= 0 && py < height) {
-        const key = `${px},${py}`
-        if (!sprayProcessedRef.current.has(key)) {
-          sprayProcessedRef.current.add(key)
-          ctx.fillRect(px, py, 1, 1)
-        }
-      }
-    }
-
-    // Get positions including mirrored
-    const getPositions = (baseX: number, baseY: number): Point[] => {
-      const positions: Point[] = [{ x: baseX, y: baseY }]
-
-      if (mirrorH) {
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        positions.push({ x: mirroredX, y: baseY })
-      }
-
-      if (mirrorV) {
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: baseX, y: mirroredY })
-      }
-
-      if (mirrorH && mirrorV) {
-        const mirroredX = Math.floor(2 * centerX - baseX - 1)
-        const mirroredY = Math.floor(2 * centerY - baseY - 1)
-        positions.push({ x: mirroredX, y: mirroredY })
-      }
-
-      return positions
-    }
-
-    // Spray random pixels within radius
-    for (let i = 0; i < sprayDensity; i++) {
-      const angle = Math.random() * Math.PI * 2
-      const distance = Math.sqrt(Math.random()) * sprayRadius
-
-      const px = Math.floor(x + Math.cos(angle) * distance)
-      const py = Math.floor(y + Math.sin(angle) * distance)
-
-      const positions = getPositions(px, py)
-      positions.forEach(p => drawSprayPixel(p.x, p.y))
-    }
-  }, [width, height, layers, currentLayerIndex, mirrorH, mirrorV, sprayDensity, sprayRadius])
-
-  // Spray line using Bresenham
-  const sprayLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, color: string) => {
-    const points = bresenhamLine(from.x, from.y, to.x, to.y)
-    points.forEach(p => {
-      sprayPixels(ctx, p.x, p.y, color)
-    })
-  }, [sprayPixels])
-
-  // Check if we should draw at position based on spacing mode
-  const shouldDrawAtPosition = useCallback((pos: Point): boolean => {
-    if (!spacingMode) return true
-
-    const lastPos = lastSpacingPosRef.current
-    if (!lastPos) {
-      lastSpacingPosRef.current = pos
-      return true
-    }
-
-    const dx = Math.abs(pos.x - lastPos.x)
-    const dy = Math.abs(pos.y - lastPos.y)
-
-    if (dx >= spacing.x || dy >= spacing.y) {
-      lastSpacingPosRef.current = pos
-      return true
-    }
-
-    return false
-  }, [spacingMode, spacing])
-
-  // Draw line using Bresenham with spacing support
-  const drawLine = useCallback((ctx: CanvasRenderingContext2D, from: Point, to: Point, color: string, size: number = brushSize) => {
-    const points = bresenhamLine(from.x, from.y, to.x, to.y)
-    points.forEach(p => {
-      if (shouldDrawAtPosition(p)) {
-        drawPixel(ctx, p.x, p.y, color, size)
-      }
-    })
-  }, [drawPixel, brushSize, shouldDrawAtPosition])
-
-  // Flood fill - operates on current layer
-  const doFloodFill = useCallback((x: number, y: number, fillColor: string) => {
-    const ctx = getCurrentLayerCtx()
-    if (!ctx) return
-
-    const layer = layers[currentLayerIndex]
-    if (!layer?.visible || layer?.locked) return
-
-    const rgb = hexToRgb(fillColor)
-    if (!rgb) return
-
-    // Get current image data from the layer
-    const imageData = ctx.getImageData(0, 0, width, height)
-
-    // Get points to fill using flood fill algorithm with tolerance from store
-    const pointsToFill = floodFill(imageData, x, y, bucketTolerance)
-
-    // Fill the points with the new color
-    for (const point of pointsToFill) {
-      const index = (point.y * width + point.x) * 4
-      imageData.data[index] = rgb.r
-      imageData.data[index + 1] = rgb.g
-      imageData.data[index + 2] = rgb.b
-      imageData.data[index + 3] = 255
-    }
-
-    // Put the modified image data back
-    ctx.putImageData(imageData, 0, 0)
-  }, [getCurrentLayerCtx, layers, currentLayerIndex, width, height, bucketTolerance])
-
-  // Pick color from composited canvas (visible result)
-  const pickColor = useCallback((x: number, y: number, isPrimary: boolean) => {
-    const composited = composite()
-    if (!composited) return
-
-    const ctx = composited.getContext("2d")
-    if (!ctx) return
-
-    if (x < 0 || x >= width || y < 0 || y >= height) return
-
-    const pixel = ctx.getImageData(x, y, 1, 1).data
-    if (pixel[3] === 0) return // Skip transparent pixels
-
-    const hex = `#${pixel[0].toString(16).padStart(2, "0")}${pixel[1].toString(16).padStart(2, "0")}${pixel[2].toString(16).padStart(2, "0")}`
-
-    if (isPrimary) {
-      setPrimaryColor(hex)
-    } else {
-      setSecondaryColor(hex)
-    }
-  }, [width, height, setPrimaryColor, setSecondaryColor, composite])
-
-  // Draw ellipse using midpoint algorithm
-  const drawEllipse = useCallback((ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string, isFilled: boolean = false) => {
-    if (rx <= 0 || ry <= 0) return
-
-    ctx.fillStyle = color
-    const setPixel = (x: number, y: number) => {
-      if (x >= 0 && x < width && y >= 0 && y < height) {
-        ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1)
-      }
-    }
-
-    if (isFilled) {
-      // Filled ellipse - scan through bounding box
-      const floorCx = Math.floor(cx)
-      const floorCy = Math.floor(cy)
-      const floorRx = Math.floor(rx)
-      const floorRy = Math.floor(ry)
-      for (let dy = -floorRy; dy <= floorRy; dy++) {
-        for (let dx = -floorRx; dx <= floorRx; dx++) {
-          // Check if point is inside ellipse
-          const nx = dx / (floorRx || 1)
-          const ny = dy / (floorRy || 1)
-          if (nx * nx + ny * ny <= 1) {
-            setPixel(floorCx + dx, floorCy + dy)
-          }
-        }
-      }
-    } else {
-      // Outline ellipse
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
-        const x = cx + rx * Math.cos(angle)
-        const y = cy + ry * Math.sin(angle)
-        setPixel(x, y)
-      }
-    }
-  }, [width, height])
-
-  // Draw shape preview on the preview canvas
+  // Draw shape preview (for line, rectangle, ellipse tools)
   const drawShapePreview = useCallback((start: Point, end: Point, tool: string, color: string) => {
     const layerCtx = getCurrentLayerCtx()
-    const preview = previewCanvasRef.current
-    if (!layerCtx || !preview) return
+    if (!layerCtx) return
 
-    const previewCtx = preview.getContext("2d")
-    if (!previewCtx) return
-
-    // Clear preview
-    previewCtx.clearRect(0, 0, width, height)
-
-    // Restore original image on layer
+    // Restore original image
     if (preDrawImageData) {
       layerCtx.putImageData(preDrawImageData, 0, 0)
     }
 
-    // Draw shape preview on layer canvas (temporary)
     layerCtx.fillStyle = color
     layerCtx.strokeStyle = color
 
@@ -637,138 +269,111 @@ export function Canvas() {
 
     switch (tool) {
       case 'line':
-        drawLine(layerCtx, start, end, color, brushSize)
+        const points = bresenhamLine(start.x, start.y, end.x, end.y)
+        points.forEach(p => {
+          if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height) {
+            layerCtx.fillRect(p.x, p.y, 1, 1)
+          }
+        })
         break
+
       case 'rectangle':
         if (filled) {
-          // Filled rectangle
-          for (let y = minY; y <= minY + h; y++) {
-            for (let x = minX; x <= minX + w; x++) {
-              drawPixel(layerCtx, x, y, color, 1)
-            }
-          }
+          layerCtx.fillRect(minX, minY, w + 1, h + 1)
         } else {
-          // Rectangle outline
           for (let x = minX; x <= minX + w; x++) {
-            drawPixel(layerCtx, x, minY, color, 1)
-            drawPixel(layerCtx, x, minY + h, color, 1)
+            layerCtx.fillRect(x, minY, 1, 1)
+            layerCtx.fillRect(x, minY + h, 1, 1)
           }
           for (let y = minY; y <= minY + h; y++) {
-            drawPixel(layerCtx, minX, y, color, 1)
-            drawPixel(layerCtx, minX + w, y, color, 1)
+            layerCtx.fillRect(minX, y, 1, 1)
+            layerCtx.fillRect(minX + w, y, 1, 1)
           }
         }
         break
+
       case 'ellipse':
-        // Draw ellipse using midpoint algorithm
         const cx = (start.x + end.x) / 2
         const cy = (start.y + end.y) / 2
         const rx = w / 2
         const ry = h / 2
-        drawEllipse(layerCtx, cx, cy, rx, ry, color, filled)
+
+        if (rx <= 0 || ry <= 0) break
+
+        if (filled) {
+          const floorCx = Math.floor(cx)
+          const floorCy = Math.floor(cy)
+          const floorRx = Math.floor(rx)
+          const floorRy = Math.floor(ry)
+          for (let dy = -floorRy; dy <= floorRy; dy++) {
+            for (let dx = -floorRx; dx <= floorRx; dx++) {
+              const nx = dx / (floorRx || 1)
+              const ny = dy / (floorRy || 1)
+              if (nx * nx + ny * ny <= 1) {
+                const px = floorCx + dx
+                const py = floorCy + dy
+                if (px >= 0 && px < width && py >= 0 && py < height) {
+                  layerCtx.fillRect(px, py, 1, 1)
+                }
+              }
+            }
+          }
+        } else {
+          for (let angle = 0; angle < Math.PI * 2; angle += 0.01) {
+            const x = Math.floor(cx + rx * Math.cos(angle))
+            const y = Math.floor(cy + ry * Math.sin(angle))
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+              layerCtx.fillRect(x, y, 1, 1)
+            }
+          }
+        }
         break
     }
 
-    // Update display canvas with composited result
-    const displayCanvas = displayCanvasRef.current
-    if (displayCanvas) {
-      const displayCtx = displayCanvas.getContext("2d")
-      if (displayCtx) {
-        const composited = composite()
-        if (composited) {
-          displayCtx.clearRect(0, 0, width, height)
-          displayCtx.drawImage(composited, 0, 0)
-        }
-      }
-    }
-  }, [width, height, brushSize, preDrawImageData, drawLine, drawPixel, drawEllipse, getCurrentLayerCtx, composite, filled])
-
-  // Helper to update display canvas with composited layers
-  const updateDisplay = useCallback(() => {
-    const displayCanvas = displayCanvasRef.current
-    if (!displayCanvas) return
-
-    const displayCtx = displayCanvas.getContext("2d")
-    if (!displayCtx) return
-
-    const composited = composite()
-    if (composited) {
-      displayCtx.clearRect(0, 0, width, height)
-      displayCtx.drawImage(composited, 0, 0)
-    }
-  }, [composite, width, height])
+    updateDisplay()
+  }, [width, height, filled, preDrawImageData, getCurrentLayerCtx, updateDisplay])
 
   // Handle pointer down
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const displayCanvas = displayCanvasRef.current
     if (!displayCanvas) return
 
-    const layerCtx = getCurrentLayerCtx()
     const currentLayerCanvas = getCurrentLayer()
-
     const point = getCanvasPoint(e)
     const isPrimary = e.button !== 2
+    const button: 'left' | 'right' = isPrimary ? 'left' : 'right'
     const color = isPrimary ? primaryColor : secondaryColor
 
-    // Capture state before drawing for undo (from current layer)
-    const beforeState = currentLayerCanvas?.ctx ? captureCanvasState(currentLayerCanvas.canvas) : null
+    // Capture state before drawing
+    const beforeState = currentLayerCanvas?.ctx
+      ? captureCanvasState(currentLayerCanvas.canvas)
+      : null
     setPreDrawImageData(beforeState)
-
     setIsDrawing(true)
-    setLastPoint(point)
 
+    // Handle tool-managed tools via ToolManager
+    if (isToolManagedTool(currentTool)) {
+      const ctx = getDrawingContext()
+      if (ctx) {
+        ctx.color = color
+        ToolManager.handlePointerDown(point, button, ctx)
+      }
+      displayCanvas.setPointerCapture(e.pointerId)
+      return
+    }
+
+    // Handle other tools directly
     switch (currentTool) {
-      case "pencil":
-        // Reset spacing position at start of stroke
-        lastSpacingPosRef.current = null
-        if (layerCtx && shouldDrawAtPosition(point)) {
-          drawPixel(layerCtx, point.x, point.y, color)
-          updateDisplay()
-        }
-        break
-      case "shading":
-        if (layerCtx) {
-          shadePixel(layerCtx, point.x, point.y)
-          updateDisplay()
-        }
-        break
-      case "spray":
-        // Reset spray processed pixels at start of stroke
-        sprayProcessedRef.current.clear()
-        if (layerCtx) {
-          sprayPixels(layerCtx, point.x, point.y, color)
-          updateDisplay()
-        }
-        break
-      case "eraser":
-        if (layerCtx) {
-          erasePixel(layerCtx, point.x, point.y)
-          updateDisplay()
-        }
-        break
-      case "bucket":
-        doFloodFill(point.x, point.y, color)
-        updateDisplay()
-        // Add to history immediately for bucket (save layer data too)
-        if (beforeState && currentLayerCanvas) {
-          const afterState = captureCanvasState(currentLayerCanvas.canvas)
-          if (afterState) {
-            history.addImageAction("Fill", currentLayerCanvas.canvas, beforeState, afterState)
-          }
-        }
-        saveCurrentLayerData()
-        break
-      case "colorPicker":
-        pickColor(point.x, point.y, isPrimary)
-        break
       case "line":
       case "rectangle":
       case "ellipse":
         setShapeStart(point)
         break
+
       case "pan":
         // Pan handled in pointer move
         break
+
       case "zoom":
         if (isPrimary) {
           zoomIn()
@@ -776,20 +381,16 @@ export function Canvas() {
           zoomOut()
         }
         break
-      case "move":
-        // Move tool - to be implemented with selection
-        break
+
       case "rectSelect":
       case "ellipseSelect":
-        // Start rectangle/ellipse selection
         setShapeStart(point)
-        // Check modifier keys for selection mode
         if (!e.shiftKey && !e.altKey && !e.ctrlKey) {
           clearSelection()
         }
         break
+
       case "magicWand":
-        // Magic wand selection - use composited result
         const compositedCanvas = composite()
         if (compositedCanvas) {
           const compositedCtx = compositedCanvas.getContext("2d")
@@ -806,45 +407,30 @@ export function Canvas() {
         break
     }
 
-    // Capture pointer for better tracking
     displayCanvas.setPointerCapture(e.pointerId)
-  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, drawPixel, shadePixel, doFloodFill, pickColor, history, zoomIn, zoomOut, clearSelection, selectMask, width, height, getCurrentLayerCtx, getCurrentLayer, updateDisplay, composite, saveCurrentLayerData, shouldDrawAtPosition])
+  }, [getCanvasPoint, currentTool, primaryColor, secondaryColor, zoomIn, zoomOut, clearSelection, selectMask, width, height, getCurrentLayer, getDrawingContext, composite, floodSelectMask])
 
   // Handle pointer move
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return
 
-    const layerCtx = getCurrentLayerCtx()
-
     const point = getCanvasPoint(e)
     const isPrimary = (e.buttons & 1) !== 0
+    const button: 'left' | 'right' = isPrimary ? 'left' : 'right'
     const color = isPrimary ? primaryColor : secondaryColor
 
+    // Handle tool-managed tools via ToolManager
+    if (isToolManagedTool(currentTool)) {
+      const ctx = getDrawingContext()
+      if (ctx) {
+        ctx.color = color
+        ToolManager.handlePointerMove(point, button, ctx)
+      }
+      return
+    }
+
+    // Handle other tools directly
     switch (currentTool) {
-      case "pencil":
-        if (lastPoint && layerCtx) {
-          drawLine(layerCtx, lastPoint, point, color)
-          updateDisplay()
-        }
-        break
-      case "shading":
-        if (lastPoint && layerCtx) {
-          drawShadingLine(layerCtx, lastPoint, point)
-          updateDisplay()
-        }
-        break
-      case "spray":
-        if (lastPoint && layerCtx) {
-          sprayLine(layerCtx, lastPoint, point, color)
-          updateDisplay()
-        }
-        break
-      case "eraser":
-        if (lastPoint && layerCtx) {
-          eraseLine(layerCtx, lastPoint, point)
-          updateDisplay()
-        }
-        break
       case "line":
       case "rectangle":
       case "ellipse":
@@ -852,16 +438,14 @@ export function Canvas() {
           drawShapePreview(shapeStart, point, currentTool, color)
         }
         break
+
       case "pan":
         pan(e.movementX, e.movementY)
         break
-      case "colorPicker":
-        pickColor(point.x, point.y, isPrimary)
-        break
+
       case "rectSelect":
       case "ellipseSelect":
         if (shapeStart) {
-          // Update selection preview
           const rect: SelectionRect = {
             x: Math.min(shapeStart.x, point.x),
             y: Math.min(shapeStart.y, point.y),
@@ -872,9 +456,7 @@ export function Canvas() {
         }
         break
     }
-
-    setLastPoint(point)
-  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, brushSize, lastPoint, shapeStart, drawLine, drawShadingLine, drawShapePreview, pan, pickColor, getCurrentLayerCtx, updateDisplay])
+  }, [isDrawing, getCanvasPoint, currentTool, primaryColor, secondaryColor, shapeStart, drawShapePreview, pan, getDrawingContext])
 
   // Handle pointer up
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -885,65 +467,72 @@ export function Canvas() {
 
     const currentLayerCanvas = getCurrentLayer()
     const point = getCanvasPoint(e)
+    const isPrimary = (e.buttons & 1) === 0 ? e.button !== 2 : (e.buttons & 1) !== 0
+    const button: 'left' | 'right' = isPrimary ? 'left' : 'right'
+    const color = isPrimary ? primaryColor : secondaryColor
 
-    // Add action to history for drawing tools and save layer data
-    if (preDrawImageData && ['pencil', 'eraser', 'line', 'rectangle', 'ellipse', 'shading', 'spray'].includes(currentTool)) {
-      if (currentLayerCanvas) {
-        const afterState = captureCanvasState(currentLayerCanvas.canvas)
-        if (afterState) {
-          const toolName = currentTool.charAt(0).toUpperCase() + currentTool.slice(1)
-          history.addImageAction(toolName, currentLayerCanvas.canvas, preDrawImageData, afterState)
+    // Handle tool-managed tools via ToolManager
+    if (isToolManagedTool(currentTool)) {
+      const ctx = getDrawingContext()
+      if (ctx) {
+        ctx.color = color
+        ToolManager.handlePointerUp(point, button, ctx)
+      }
+    } else {
+      // Handle shape tools
+      if (['line', 'rectangle', 'ellipse'].includes(currentTool) && shapeStart) {
+        // Finalize shape - already drawn in preview
+        if (preDrawImageData && currentLayerCanvas) {
+          const afterState = captureCanvasState(currentLayerCanvas.canvas)
+          if (afterState) {
+            const toolName = currentTool.charAt(0).toUpperCase() + currentTool.slice(1)
+            history.addImageAction(toolName, currentLayerCanvas.canvas, preDrawImageData, afterState)
+          }
         }
-      }
-      // Save layer data to store
-      saveCurrentLayerData()
-    }
-
-    // Finalize rectangle or ellipse selection
-    if ((currentTool === 'rectSelect' || currentTool === 'ellipseSelect') && shapeStart) {
-      const rect: SelectionRect = {
-        x: Math.min(shapeStart.x, point.x),
-        y: Math.min(shapeStart.y, point.y),
-        width: Math.max(1, Math.abs(point.x - shapeStart.x)),
-        height: Math.max(1, Math.abs(point.y - shapeStart.y)),
+        saveCurrentLayerData()
       }
 
-      // Determine selection operation from modifiers
-      const operation = e.shiftKey ? SelectionOperation.ADD
-        : e.altKey ? SelectionOperation.SUBTRACT
-        : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
-        : SelectionOperation.REPLACE
+      // Handle selection tools
+      if ((currentTool === 'rectSelect' || currentTool === 'ellipseSelect') && shapeStart) {
+        const rect: SelectionRect = {
+          x: Math.min(shapeStart.x, point.x),
+          y: Math.min(shapeStart.y, point.y),
+          width: Math.max(1, Math.abs(point.x - shapeStart.x)),
+          height: Math.max(1, Math.abs(point.y - shapeStart.y)),
+        }
 
-      if (currentTool === 'ellipseSelect') {
-        selectEllipse(rect, operation)
-      } else {
-        selectRect(rect, operation)
+        const operation = e.shiftKey ? SelectionOperation.ADD
+          : e.altKey ? SelectionOperation.SUBTRACT
+          : e.ctrlKey && e.shiftKey ? SelectionOperation.INTERSECT
+          : SelectionOperation.REPLACE
+
+        if (currentTool === 'ellipseSelect') {
+          selectEllipse(rect, operation)
+        } else {
+          selectRect(rect, operation)
+        }
+        setSelectionPreview(null)
       }
-      setSelectionPreview(null)
     }
 
     setIsDrawing(false)
-    setLastPoint(null)
     setShapeStart(null)
     setPreDrawImageData(null)
 
-    // Release pointer capture
     displayCanvas.releasePointerCapture(e.pointerId)
-  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, selectEllipse, getCurrentLayer, saveCurrentLayerData])
+  }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, selectEllipse, getCurrentLayer, saveCurrentLayerData, getDrawingContext, primaryColor, secondaryColor])
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
 
     if (e.ctrlKey || e.metaKey) {
-      // Zoom
       if (e.deltaY < 0) {
         zoomIn()
       } else {
         zoomOut()
       }
     } else {
-      // Pan
       pan(-e.deltaX, -e.deltaY)
     }
   }, [zoomIn, zoomOut, pan])
@@ -951,20 +540,13 @@ export function Canvas() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Z for undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         history.undo()
       }
-      // Ctrl+Shift+Z or Ctrl+Y for redo
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault()
         history.redo()
-      }
-      // Space for temporary pan
-      if (e.key === ' ' && !e.repeat) {
-        e.preventDefault()
-        // Could switch to pan tool temporarily
       }
     }
 
@@ -972,12 +554,10 @@ export function Canvas() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [history])
 
-  // Prevent context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
   }, [])
 
-  // Get cursor based on tool
   const getCursor = () => {
     switch (currentTool) {
       case 'pan': return isDrawing ? 'grabbing' : 'grab'
@@ -1004,29 +584,22 @@ export function Canvas() {
         }}
       >
         <div className="relative" style={{ width: canvasWidth, height: canvasHeight }}>
-          {/* Onion skin canvas (behind main canvas) */}
+          {/* Onion skin canvas */}
           <canvas
             ref={onionSkinCanvasRef}
             width={width}
             height={height}
             className="absolute inset-0 pointer-events-none pixel-canvas"
-            style={{
-              width: canvasWidth,
-              height: canvasHeight,
-            }}
+            style={{ width: canvasWidth, height: canvasHeight }}
           />
 
-          {/* Display canvas - shows composited layers */}
+          {/* Display canvas */}
           <canvas
             ref={displayCanvasRef}
             width={width}
             height={height}
             className="pixel-canvas shadow-2xl checker-bg"
-            style={{
-              width: canvasWidth,
-              height: canvasHeight,
-              cursor: getCursor(),
-            }}
+            style={{ width: canvasWidth, height: canvasHeight, cursor: getCursor() }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -1034,32 +607,25 @@ export function Canvas() {
             onContextMenu={handleContextMenu}
           />
 
-          {/* Preview canvas for shape tools */}
+          {/* Preview canvas */}
           <canvas
             ref={previewCanvasRef}
             width={width}
             height={height}
             className="absolute inset-0 pointer-events-none pixel-canvas"
-            style={{
-              width: canvasWidth,
-              height: canvasHeight,
-            }}
+            style={{ width: canvasWidth, height: canvasHeight }}
           />
 
-          {/* Selection overlay canvas (marching ants) */}
+          {/* Selection overlay */}
           <canvas
             ref={selectionCanvasRef}
             width={width}
             height={height}
             className="absolute inset-0 pointer-events-none"
-            style={{
-              width: canvasWidth,
-              height: canvasHeight,
-              imageRendering: 'pixelated',
-            }}
+            style={{ width: canvasWidth, height: canvasHeight, imageRendering: 'pixelated' }}
           />
 
-          {/* Selection preview (while dragging) */}
+          {/* Selection preview - Rectangle */}
           {selectionPreview && currentTool === 'rectSelect' && (
             <div
               className="absolute pointer-events-none border border-dashed border-white"
@@ -1073,7 +639,7 @@ export function Canvas() {
             />
           )}
 
-          {/* Ellipse selection preview */}
+          {/* Selection preview - Ellipse */}
           {selectionPreview && currentTool === 'ellipseSelect' && (
             <svg
               className="absolute inset-0 pointer-events-none"
@@ -1113,12 +679,7 @@ export function Canvas() {
               height={canvasHeight}
             >
               <defs>
-                <pattern
-                  id="grid"
-                  width={zoom}
-                  height={zoom}
-                  patternUnits="userSpaceOnUse"
-                >
+                <pattern id="grid" width={zoom} height={zoom} patternUnits="userSpaceOnUse">
                   <path
                     d={`M ${zoom} 0 L 0 0 0 ${zoom}`}
                     fill="none"
