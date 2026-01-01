@@ -50,6 +50,8 @@ export function TopMenu() {
     zoomIn,
     zoomOut,
     resetZoom,
+    fitToScreen,
+    resetPan,
     addLayer,
     duplicateLayer,
     deleteLayer,
@@ -229,7 +231,12 @@ export function TopMenu() {
             <MenubarItem onClick={resetZoom}>
               Zoom 100% <MenubarShortcut>Ctrl+0</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>Fit to Window</MenubarItem>
+            <MenubarItem onClick={() => fitToScreen(window.innerWidth - 300, window.innerHeight - 200)}>
+              Fit to Window
+            </MenubarItem>
+            <MenubarItem onClick={resetPan}>
+              Center Canvas
+            </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarCheckboxItem checked={showGrid} onClick={toggleGrid}>
               Show Grid <MenubarShortcut>Ctrl+G</MenubarShortcut>
