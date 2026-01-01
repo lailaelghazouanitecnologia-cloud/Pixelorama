@@ -3,7 +3,7 @@
  * Based on Pixelorama's TopMenuContainer
  */
 
-import { useCallback, useRef } from "react"
+import { useCallback } from "react"
 import {
   Menubar,
   MenubarContent,
@@ -21,9 +21,9 @@ import { useEditorStore } from "@/store/editor-store"
 import { useUIStore } from "@/store/ui-store"
 import { getHistory } from "@/core/history"
 import { downloadCanvas } from "@/core/export"
+import { downloadProject, openProjectDialog } from "@/core/project"
 
 export function TopMenu() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { openDialog } = useUIStore()
 
   const {
@@ -65,23 +65,11 @@ export function TopMenu() {
   }, [openDialog])
 
   const handleOpen = useCallback(() => {
-    fileInputRef.current?.click()
+    openProjectDialog()
   }, [])
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        // Would need to implement loading image to canvas
-        console.log('Image loaded:', img.width, img.height)
-      }
-      img.src = event.target?.result as string
-    }
-    reader.readAsDataURL(file)
+  const handleSave = useCallback(() => {
+    downloadProject()
   }, [])
 
   const handleExportPNG = useCallback(() => {
@@ -108,16 +96,7 @@ export function TopMenu() {
   }, [history])
 
   return (
-    <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-      />
-
-      <Menubar className="menu-bar rounded-none border-0 h-6 min-h-0 px-1">
+    <Menubar className="menu-bar rounded-none border-0 h-6 min-h-0 px-1">
         {/* File Menu */}
         <MenubarMenu>
           <MenubarTrigger className="menu-item h-5 px-2 py-0 text-xs">File</MenubarTrigger>
@@ -132,10 +111,10 @@ export function TopMenu() {
               Import... <MenubarShortcut>Ctrl+I</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>
+            <MenubarItem onClick={handleSave}>
               Save <MenubarShortcut>Ctrl+S</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>
+            <MenubarItem onClick={handleSave}>
               Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
@@ -348,6 +327,5 @@ export function TopMenu() {
           {projectName} ({width}×{height})
         </span>
       </Menubar>
-    </>
   )
 }
