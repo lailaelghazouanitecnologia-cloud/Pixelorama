@@ -25,7 +25,7 @@ export type ToolName =
 
 export type ShadingMode = 'lighten' | 'darken'
 
-export type LayerType = 'pixel' | 'group'
+export type LayerType = 'pixel' | 'group' | 'tilemap'
 
 export interface Layer {
   id: string
@@ -46,6 +46,9 @@ export interface Layer {
   linkedCelId?: string  // ID of the source layer this cel is linked to
   // Layer effects (non-destructive)
   effects?: import('./layerEffects').AnyLayerEffect[]
+  // TileMap layer support
+  tilemapData?: import('@/core/tilemap').TileMapData
+  selectedTilesetId?: string
 }
 
 // All 20 blend modes matching Pixelorama's BaseLayer.gd
@@ -230,6 +233,14 @@ export interface EditorState {
   toggleGroupExpanded: (index: number) => void
   moveLayerToGroup: (layerIndex: number, groupIndex: number | null) => void
 
+  // TileMap Layers
+  addTileMapLayer: (name?: string, tileWidth?: number, tileHeight?: number) => void
+  setTileMapData: (layerIndex: number, data: import('@/core/tilemap').TileMapData) => void
+  setLayerTileset: (layerIndex: number, tilesetId: string) => void
+  updateTileAt: (layerIndex: number, tx: number, ty: number, cell: import('@/core/tilemap').TileCell) => void
+  clearTileAt: (layerIndex: number, tx: number, ty: number) => void
+  isTileMapLayer: (layerIndex: number) => boolean
+
   // Clipping Masks
   toggleClipping: (index: number) => void
   setClipping: (index: number, clipped: boolean) => void
@@ -369,6 +380,29 @@ const createLayerGroup = (id: string, name: string): Layer => ({
   children: [],
   expanded: true,
 })
+
+const createTileMapLayer = (
+  id: string,
+  name: string,
+  widthInTiles: number,
+  heightInTiles: number,
+  tileWidth: number,
+  tileHeight: number
+): Layer => {
+  // Import dynamically to avoid circular dependencies
+  const { createTileMapData } = require('@/core/tilemap')
+  return {
+    id,
+    name,
+    visible: true,
+    locked: false,
+    opacity: 100,
+    blendMode: 'normal',
+    data: null,
+    type: 'tilemap',
+    tilemapData: createTileMapData(widthInTiles, heightInTiles, tileWidth, tileHeight),
+  }
+}
 
 const createDefaultSelection = (): Selection => ({
   active: false,
@@ -912,6 +946,80 @@ export const useEditorStore = create<EditorState>()(
         modified: true,
       }
     }),
+
+    // TileMap Layers
+    addTileMapLayer: (name, tileWidth = 16, tileHeight = 16) => set((state) => {
+      const id = `tilemap-${Date.now()}`
+      const layerName = name || `TileMap ${state.layers.filter(l => l.type === 'tilemap').length + 1}`
+      // Calculate grid dimensions based on canvas size
+      const widthInTiles = Math.ceil(state.width / tileWidth)
+      const heightInTiles = Math.ceil(state.height / tileHeight)
+      const newLayer = createTileMapLayer(id, layerName, widthInTiles, heightInTiles, tileWidth, tileHeight)
+      return {
+        layers: [...state.layers, newLayer],
+        currentLayerIndex: state.layers.length,
+        modified: true,
+      }
+    }),
+
+    setTileMapData: (layerIndex, data) => set((state) => {
+      const layer = state.layers[layerIndex]
+      if (!layer || layer.type !== 'tilemap') return state
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === layerIndex ? { ...l, tilemapData: data } : l
+        ),
+        modified: true,
+      }
+    }),
+
+    setLayerTileset: (layerIndex, tilesetId) => set((state) => {
+      const layer = state.layers[layerIndex]
+      if (!layer || layer.type !== 'tilemap') return state
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === layerIndex ? { ...l, selectedTilesetId: tilesetId } : l
+        ),
+        modified: true,
+      }
+    }),
+
+    updateTileAt: (layerIndex, tx, ty, cell) => set((state) => {
+      const layer = state.layers[layerIndex]
+      if (!layer || layer.type !== 'tilemap' || !layer.tilemapData) return state
+
+      const { setTileAt } = require('@/core/tilemap')
+      const newTilemapData = setTileAt(layer.tilemapData, tx, ty, cell)
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === layerIndex ? { ...l, tilemapData: newTilemapData } : l
+        ),
+        modified: true,
+      }
+    }),
+
+    clearTileAt: (layerIndex, tx, ty) => set((state) => {
+      const layer = state.layers[layerIndex]
+      if (!layer || layer.type !== 'tilemap' || !layer.tilemapData) return state
+
+      const { clearTileAt: clearTile } = require('@/core/tilemap')
+      const newTilemapData = clearTile(layer.tilemapData, tx, ty)
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === layerIndex ? { ...l, tilemapData: newTilemapData } : l
+        ),
+        modified: true,
+      }
+    }),
+
+    isTileMapLayer: (layerIndex) => {
+      const layer = get().layers[layerIndex]
+      return layer?.type === 'tilemap'
+    },
 
     // Clipping Masks
     toggleClipping: (index) => set((state) => {

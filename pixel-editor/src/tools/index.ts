@@ -20,6 +20,7 @@ export * from './utility/Zoom'
 export * from './utility/ColorPicker'
 export * from './utility/Move'
 export * from './utility/CropTool'
+export * from './utility/TileMapTool'
 
 // Selection Tools
 export * from './selection/RectSelect'
