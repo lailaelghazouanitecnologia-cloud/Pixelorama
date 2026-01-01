@@ -71,6 +71,11 @@ export function TopMenu() {
     rotate180,
     mirrorView,
     toggleMirrorView,
+    cut,
+    copy,
+    paste,
+    deleteSelection,
+    clipboard,
   } = useEditorStore()
 
   const history = getHistory()
@@ -171,16 +176,18 @@ export function TopMenu() {
               Redo <MenubarShortcut>Ctrl+Y</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator className="separator" />
-            <MenubarItem>
+            <MenubarItem onClick={cut} disabled={!selection.active}>
               Cut <MenubarShortcut>Ctrl+X</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>
+            <MenubarItem onClick={copy} disabled={!selection.active}>
               Copy <MenubarShortcut>Ctrl+C</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>
+            <MenubarItem onClick={paste} disabled={!clipboard}>
               Paste <MenubarShortcut>Ctrl+V</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>Delete</MenubarItem>
+            <MenubarItem onClick={deleteSelection} disabled={!selection.active}>
+              Delete <MenubarShortcut>Del</MenubarShortcut>
+            </MenubarItem>
             <MenubarSeparator className="separator" />
             <MenubarItem onClick={() => openDialog('preferences')}>
               Preferences...

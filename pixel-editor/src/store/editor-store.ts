@@ -199,6 +199,14 @@ export interface EditorState {
   selectAll: () => void
   invertSelection: () => void
 
+  // Clipboard
+  clipboard: ImageData | null
+  clipboardOffset: { x: number; y: number }
+  cut: () => void
+  copy: () => void
+  paste: () => void
+  deleteSelection: () => void
+
   // History
   undo: () => void
   redo: () => void
@@ -326,6 +334,10 @@ export const useEditorStore = create<EditorState>()(
 
     // Selection
     selection: createDefaultSelection(),
+
+    // Clipboard
+    clipboard: null,
+    clipboardOffset: { x: 0, y: 0 },
 
     // History
     history: getHistory(),
@@ -828,6 +840,169 @@ export const useEditorStore = create<EditorState>()(
       // Invert selection logic would go here
       return state
     }),
+
+    // Clipboard operations
+    copy: () => {
+      const state = get()
+      const { selection, layers, currentLayerIndex, width, height } = state
+
+      if (!selection.active) return
+
+      const layer = layers[currentLayerIndex]
+      if (!layer?.data) return
+
+      // Extract selected region
+      const { x, y, width: selW, height: selH } = selection
+      const clipboardData = new ImageData(selW, selH)
+
+      for (let sy = 0; sy < selH; sy++) {
+        for (let sx = 0; sx < selW; sx++) {
+          const srcX = x + sx
+          const srcY = y + sy
+          if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+            const srcIdx = (srcY * width + srcX) * 4
+            const dstIdx = (sy * selW + sx) * 4
+            clipboardData.data[dstIdx] = layer.data.data[srcIdx]
+            clipboardData.data[dstIdx + 1] = layer.data.data[srcIdx + 1]
+            clipboardData.data[dstIdx + 2] = layer.data.data[srcIdx + 2]
+            clipboardData.data[dstIdx + 3] = layer.data.data[srcIdx + 3]
+          }
+        }
+      }
+
+      set({
+        clipboard: clipboardData,
+        clipboardOffset: { x, y },
+      })
+    },
+
+    cut: () => {
+      const state = get()
+      // First copy
+      get().copy()
+      // Then delete the selection
+      get().deleteSelection()
+    },
+
+    paste: () => {
+      const state = get()
+      const { clipboard, clipboardOffset, layers, currentLayerIndex, width, height, frames, currentFrameIndex } = state
+
+      if (!clipboard) return
+
+      const layer = layers[currentLayerIndex]
+      if (!layer?.data) return
+
+      // Create new image data with pasted content
+      const newData = new ImageData(
+        new Uint8ClampedArray(layer.data.data),
+        width,
+        height
+      )
+
+      // Paste at clipboard offset (or center if it would be off-canvas)
+      let pasteX = clipboardOffset.x
+      let pasteY = clipboardOffset.y
+
+      // Offset slightly for subsequent pastes
+      pasteX = Math.min(pasteX, width - clipboard.width)
+      pasteY = Math.min(pasteY, height - clipboard.height)
+      pasteX = Math.max(0, pasteX)
+      pasteY = Math.max(0, pasteY)
+
+      for (let y = 0; y < clipboard.height; y++) {
+        for (let x = 0; x < clipboard.width; x++) {
+          const dstX = pasteX + x
+          const dstY = pasteY + y
+          if (dstX >= 0 && dstX < width && dstY >= 0 && dstY < height) {
+            const srcIdx = (y * clipboard.width + x) * 4
+            const dstIdx = (dstY * width + dstX) * 4
+
+            // Alpha blending
+            const srcAlpha = clipboard.data[srcIdx + 3] / 255
+            if (srcAlpha > 0) {
+              newData.data[dstIdx] = clipboard.data[srcIdx]
+              newData.data[dstIdx + 1] = clipboard.data[srcIdx + 1]
+              newData.data[dstIdx + 2] = clipboard.data[srcIdx + 2]
+              newData.data[dstIdx + 3] = clipboard.data[srcIdx + 3]
+            }
+          }
+        }
+      }
+
+      // Update layer
+      const newLayers = [...layers]
+      newLayers[currentLayerIndex] = { ...layer, data: newData }
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      // Create selection for pasted content
+      set({
+        frames: newFrames,
+        selection: {
+          active: true,
+          x: pasteX,
+          y: pasteY,
+          width: clipboard.width,
+          height: clipboard.height,
+          mask: null,
+        },
+        modified: true,
+      })
+    },
+
+    deleteSelection: () => {
+      const state = get()
+      const { selection, layers, currentLayerIndex, width, height, frames, currentFrameIndex } = state
+
+      if (!selection.active) return
+
+      const layer = layers[currentLayerIndex]
+      if (!layer?.data) return
+
+      // Clear selected region
+      const newData = new ImageData(
+        new Uint8ClampedArray(layer.data.data),
+        width,
+        height
+      )
+
+      const { x, y, width: selW, height: selH } = selection
+
+      for (let sy = 0; sy < selH; sy++) {
+        for (let sx = 0; sx < selW; sx++) {
+          const dstX = x + sx
+          const dstY = y + sy
+          if (dstX >= 0 && dstX < width && dstY >= 0 && dstY < height) {
+            const idx = (dstY * width + dstX) * 4
+            newData.data[idx] = 0
+            newData.data[idx + 1] = 0
+            newData.data[idx + 2] = 0
+            newData.data[idx + 3] = 0
+          }
+        }
+      }
+
+      // Update layer
+      const newLayers = [...layers]
+      newLayers[currentLayerIndex] = { ...layer, data: newData }
+
+      const newFrames = [...frames]
+      newFrames[currentFrameIndex] = {
+        ...newFrames[currentFrameIndex],
+        layers: newLayers,
+      }
+
+      set({
+        frames: newFrames,
+        selection: createDefaultSelection(),
+        modified: true,
+      })
+    },
 
     // History
     undo: () => {

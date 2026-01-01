@@ -12,6 +12,7 @@ import {
   Square,
   Circle,
   BoxSelect,
+  CircleDashed,
   Move,
   ZoomIn,
   Hand,
@@ -113,6 +114,12 @@ export function Toolbar() {
           icon={<BoxSelect className="w-4 h-4" />}
           label="Rectangle Select"
           shortcut="M"
+        />
+        <ToolButton
+          tool="ellipseSelect"
+          icon={<CircleDashed className="w-4 h-4" />}
+          label="Ellipse Select"
+          shortcut="J"
         />
         <ToolButton
           tool="magicWand"
