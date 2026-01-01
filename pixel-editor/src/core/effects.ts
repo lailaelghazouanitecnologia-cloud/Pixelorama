@@ -282,6 +282,183 @@ export function applyPixelize(imageData: ImageData, blockSize: number = 4): Imag
   return new ImageData(dstData, width, height)
 }
 
+// === MORE COLOR EFFECTS ===
+
+export function applySepia(imageData: ImageData, amount: number = 100): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+  const factor = amount / 100
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+
+    // Sepia formula
+    const tr = 0.393 * r + 0.769 * g + 0.189 * b
+    const tg = 0.349 * r + 0.686 * g + 0.168 * b
+    const tb = 0.272 * r + 0.534 * g + 0.131 * b
+
+    data[i] = clamp(r + factor * (tr - r), 0, 255)
+    data[i + 1] = clamp(g + factor * (tg - g), 0, 255)
+    data[i + 2] = clamp(b + factor * (tb - b), 0, 255)
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+export function applySharpen(imageData: ImageData, amount: number = 50): ImageData {
+  const width = imageData.width
+  const height = imageData.height
+  const srcData = imageData.data
+  const dstData = new Uint8ClampedArray(srcData.length)
+  const factor = amount / 100
+
+  // Sharpen kernel
+  const kernel = [
+    0, -1, 0,
+    -1, 5, -1,
+    0, -1, 0
+  ]
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+
+      if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+        // Edge pixels - just copy
+        dstData[idx] = srcData[idx]
+        dstData[idx + 1] = srcData[idx + 1]
+        dstData[idx + 2] = srcData[idx + 2]
+        dstData[idx + 3] = srcData[idx + 3]
+        continue
+      }
+
+      let r = 0, g = 0, b = 0
+      let ki = 0
+
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const pidx = ((y + ky) * width + (x + kx)) * 4
+          r += srcData[pidx] * kernel[ki]
+          g += srcData[pidx + 1] * kernel[ki]
+          b += srcData[pidx + 2] * kernel[ki]
+          ki++
+        }
+      }
+
+      // Blend with original based on amount
+      dstData[idx] = clamp(srcData[idx] + factor * (r - srcData[idx]), 0, 255)
+      dstData[idx + 1] = clamp(srcData[idx + 1] + factor * (g - srcData[idx + 1]), 0, 255)
+      dstData[idx + 2] = clamp(srcData[idx + 2] + factor * (b - srcData[idx + 2]), 0, 255)
+      dstData[idx + 3] = srcData[idx + 3]
+    }
+  }
+
+  return new ImageData(dstData, width, height)
+}
+
+export function applyEdgeDetect(imageData: ImageData): ImageData {
+  const width = imageData.width
+  const height = imageData.height
+  const srcData = imageData.data
+  const dstData = new Uint8ClampedArray(srcData.length)
+
+  // Sobel kernels
+  const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1]
+  const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1]
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+
+      if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+        dstData[idx] = 0
+        dstData[idx + 1] = 0
+        dstData[idx + 2] = 0
+        dstData[idx + 3] = srcData[idx + 3]
+        continue
+      }
+
+      let gxR = 0, gxG = 0, gxB = 0
+      let gyR = 0, gyG = 0, gyB = 0
+      let ki = 0
+
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const pidx = ((y + ky) * width + (x + kx)) * 4
+          gxR += srcData[pidx] * sobelX[ki]
+          gxG += srcData[pidx + 1] * sobelX[ki]
+          gxB += srcData[pidx + 2] * sobelX[ki]
+          gyR += srcData[pidx] * sobelY[ki]
+          gyG += srcData[pidx + 1] * sobelY[ki]
+          gyB += srcData[pidx + 2] * sobelY[ki]
+          ki++
+        }
+      }
+
+      const r = Math.sqrt(gxR * gxR + gyR * gyR)
+      const g = Math.sqrt(gxG * gxG + gyG * gyG)
+      const b = Math.sqrt(gxB * gxB + gyB * gyB)
+
+      dstData[idx] = clamp(r, 0, 255)
+      dstData[idx + 1] = clamp(g, 0, 255)
+      dstData[idx + 2] = clamp(b, 0, 255)
+      dstData[idx + 3] = srcData[idx + 3]
+    }
+  }
+
+  return new ImageData(dstData, width, height)
+}
+
+export function applyGradientMap(
+  imageData: ImageData,
+  colorStart: string,
+  colorEnd: string
+): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+
+  // Parse colors
+  const startR = parseInt(colorStart.slice(1, 3), 16)
+  const startG = parseInt(colorStart.slice(3, 5), 16)
+  const startB = parseInt(colorStart.slice(5, 7), 16)
+  const endR = parseInt(colorEnd.slice(1, 3), 16)
+  const endG = parseInt(colorEnd.slice(3, 5), 16)
+  const endB = parseInt(colorEnd.slice(5, 7), 16)
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    // Convert to grayscale luminosity
+    const lum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255
+
+    // Interpolate between colors based on luminosity
+    data[i] = startR + lum * (endR - startR)
+    data[i + 1] = startG + lum * (endG - startG)
+    data[i + 2] = startB + lum * (endB - startB)
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+export function applyThreshold(imageData: ImageData, threshold: number = 128): ImageData {
+  const data = new Uint8ClampedArray(imageData.data)
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+    const value = lum >= threshold ? 255 : 0
+
+    data[i] = value
+    data[i + 1] = value
+    data[i + 2] = value
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
 // === STYLIZE EFFECTS ===
 
 export function applyOutline(
@@ -525,8 +702,13 @@ export type EffectType =
   | 'desaturate'
   | 'posterize'
   | 'colorize'
+  | 'sepia'
+  | 'threshold'
+  | 'gradientMap'
   | 'gaussianBlur'
+  | 'sharpen'
   | 'pixelize'
+  | 'edgeDetect'
   | 'outline'
   | 'dropShadow'
   | 'flipHorizontal'
@@ -603,11 +785,44 @@ export const EFFECTS: EffectDefinition[] = [
     ]
   },
   {
+    id: 'sepia',
+    name: 'Sepia',
+    category: 'color',
+    params: [
+      { name: 'Amount', key: 'amount', type: 'number', min: 0, max: 100, step: 1, default: 100 },
+    ]
+  },
+  {
+    id: 'threshold',
+    name: 'Threshold',
+    category: 'color',
+    params: [
+      { name: 'Threshold', key: 'threshold', type: 'number', min: 0, max: 255, step: 1, default: 128 },
+    ]
+  },
+  {
+    id: 'gradientMap',
+    name: 'Gradient Map',
+    category: 'color',
+    params: [
+      { name: 'Dark Color', key: 'colorStart', type: 'color', default: '#000000' },
+      { name: 'Light Color', key: 'colorEnd', type: 'color', default: '#ffffff' },
+    ]
+  },
+  {
     id: 'gaussianBlur',
     name: 'Blur',
     category: 'blur',
     params: [
       { name: 'Radius', key: 'radius', type: 'number', min: 1, max: 10, step: 1, default: 1 },
+    ]
+  },
+  {
+    id: 'sharpen',
+    name: 'Sharpen',
+    category: 'blur',
+    params: [
+      { name: 'Amount', key: 'amount', type: 'number', min: 0, max: 100, step: 1, default: 50 },
     ]
   },
   {
@@ -617,6 +832,12 @@ export const EFFECTS: EffectDefinition[] = [
     params: [
       { name: 'Block Size', key: 'blockSize', type: 'number', min: 2, max: 32, step: 1, default: 4 },
     ]
+  },
+  {
+    id: 'edgeDetect',
+    name: 'Edge Detect (Sobel)',
+    category: 'stylize',
+    params: []
   },
   {
     id: 'outline',
@@ -704,10 +925,24 @@ export function applyEffect(
         (params.saturation as number) ?? 50,
         (params.preserveLuminosity as boolean) ?? true
       )
+    case 'sepia':
+      return applySepia(imageData, (params.amount as number) ?? 100)
+    case 'threshold':
+      return applyThreshold(imageData, (params.threshold as number) ?? 128)
+    case 'gradientMap':
+      return applyGradientMap(
+        imageData,
+        (params.colorStart as string) ?? '#000000',
+        (params.colorEnd as string) ?? '#ffffff'
+      )
     case 'gaussianBlur':
       return applyGaussianBlur(imageData, (params.radius as number) ?? 1)
+    case 'sharpen':
+      return applySharpen(imageData, (params.amount as number) ?? 50)
     case 'pixelize':
       return applyPixelize(imageData, (params.blockSize as number) ?? 4)
+    case 'edgeDetect':
+      return applyEdgeDetect(imageData)
     case 'outline':
       return applyOutline(
         imageData,
