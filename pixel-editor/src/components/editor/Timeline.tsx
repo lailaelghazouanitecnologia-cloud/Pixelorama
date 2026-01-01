@@ -56,7 +56,7 @@ export function Timeline() {
       <div
         className="flex flex-col"
         style={{
-          height: '140px',
+          height: '100px',
           backgroundColor: 'var(--pix-bg)',
           borderTop: '1px solid var(--pix-border)'
         }}
@@ -219,7 +219,7 @@ export function Timeline() {
         <div className="flex-1 flex overflow-hidden">
           {/* Layer Names Column */}
           <div
-            className="w-28 flex flex-col shrink-0"
+            className="w-24 flex flex-col shrink-0"
             style={{ borderRight: '1px solid var(--pix-border)' }}
           >
             {/* Header */}
@@ -241,7 +241,7 @@ export function Timeline() {
                   <div
                     key={layer.id}
                     className={cn(
-                      "h-8 flex items-center gap-1 px-1 cursor-pointer",
+                      "h-6 flex items-center gap-1 px-1 cursor-pointer",
                       index === currentLayerIndex && "bg-pix-accent/30"
                     )}
                     style={{ borderBottom: '1px solid var(--pix-border-light)' }}
@@ -309,7 +309,7 @@ export function Timeline() {
                 return (
                   <div
                     key={layer.id}
-                    className="h-8 flex"
+                    className="h-6 flex"
                     style={{ borderBottom: '1px solid var(--pix-border-light)' }}
                   >
                     {displayFrames.map((frame, frameIndex) => (
@@ -329,7 +329,7 @@ export function Timeline() {
                         {/* Cell indicator - shows if frame has content */}
                         <div
                           className={cn(
-                            "w-5 h-5 rounded-sm",
+                            "w-4 h-4 rounded-sm",
                             layer.data ? "bg-pix-text/30" : "bg-pix-bg-tertiary"
                           )}
                           style={{

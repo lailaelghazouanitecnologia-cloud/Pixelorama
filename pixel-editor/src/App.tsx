@@ -89,15 +89,15 @@ function App() {
           <Timeline />
         </div>
 
-        {/* Right Panels */}
-        <div className="w-56 flex flex-col border-l border-border">
+        {/* Right Panels - Compact */}
+        <div className="w-48 flex flex-col border-l border-border">
           {/* Colors */}
           <div className="flex-1 min-h-0">
             <ColorPanel />
           </div>
 
           {/* Layers */}
-          <div className="h-64 border-t border-border">
+          <div className="h-48 border-t border-border">
             <LayersPanel />
           </div>
         </div>

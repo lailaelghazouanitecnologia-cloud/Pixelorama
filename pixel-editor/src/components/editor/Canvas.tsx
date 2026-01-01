@@ -15,6 +15,7 @@ import { SelectionOperation, type SelectionRect } from "@/core/selection"
 import { useLayerCanvas } from "@/hooks/useLayerCanvas"
 import { compositeFrameLayers } from "@/core/layerCanvas"
 import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/core/onionSkin"
+import { CanvasRulers, RULER_SIZE_PX } from "./Rulers"
 import type { DrawingContext } from "@/core/types"
 
 // Import and register tools (side effects)
@@ -74,6 +75,7 @@ export function Canvas() {
     primaryColor,
     secondaryColor,
     showGrid,
+    showRulers,
     layers,
     currentLayerIndex,
     frames,
@@ -542,19 +544,30 @@ export function Canvas() {
     displayCanvas.releasePointerCapture(e.pointerId)
   }, [isDrawing, currentTool, preDrawImageData, history, getCanvasPoint, shapeStart, selectRect, selectEllipse, getCurrentLayer, saveCurrentLayerData, getDrawingContext, primaryColor, secondaryColor])
 
-  // Zoom with wheel
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
+  // Zoom with wheel - use effect for non-passive listener (needed for Ctrl+wheel)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
 
-    if (e.ctrlKey || e.metaKey) {
-      if (e.deltaY < 0) {
-        zoomIn()
+    const handleWheel = (e: WheelEvent) => {
+      // Prevent browser zoom
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        if (e.deltaY < 0) {
+          zoomIn()
+        } else {
+          zoomOut()
+        }
       } else {
-        zoomOut()
+        // Pan with scroll
+        e.preventDefault()
+        pan(-e.deltaX, -e.deltaY)
       }
-    } else {
-      pan(-e.deltaX, -e.deltaY)
     }
+
+    // Add with passive: false to allow preventDefault on Ctrl+wheel
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
   }, [zoomIn, zoomOut, pan])
 
   // Keyboard shortcuts
@@ -591,18 +604,33 @@ export function Canvas() {
   const canvasWidth = width * zoom
   const canvasHeight = height * zoom
 
+  // Calculate ruler offset for canvas area
+  const rulerOffset = showRulers ? RULER_SIZE_PX : 0
+
   return (
     <div
       ref={containerRef}
-      className="canvas-container flex items-center justify-center"
-      onWheel={handleWheel}
+      className="canvas-container relative"
     >
+      {/* Rulers */}
+      <CanvasRulers />
+
+      {/* Canvas area - offset by ruler size */}
       <div
-        className="canvas-viewport"
+        className="absolute flex items-center justify-center"
         style={{
-          transform: `translate(${panX}px, ${panY}px)`,
+          top: rulerOffset,
+          left: rulerOffset,
+          right: 0,
+          bottom: 0,
         }}
       >
+        <div
+          className="canvas-viewport"
+          style={{
+            transform: `translate(${panX}px, ${panY}px)`,
+          }}
+        >
         <div className="relative" style={{ width: canvasWidth, height: canvasHeight }}>
           {/* Onion skin canvas */}
           <canvas
@@ -711,6 +739,7 @@ export function Canvas() {
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
           )}
+        </div>
         </div>
       </div>
     </div>
