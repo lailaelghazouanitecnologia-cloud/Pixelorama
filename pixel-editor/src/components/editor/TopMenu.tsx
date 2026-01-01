@@ -70,6 +70,7 @@ export function TopMenu() {
     clearSelection,
     selection,
     cropToSelection,
+    invertSelection,
     flipHorizontal,
     flipVertical,
     rotate90CW,
@@ -284,9 +285,52 @@ export function TopMenu() {
             <MenubarItem onClick={clearSelection}>
               None <MenubarShortcut>Ctrl+D</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem>
+            <MenubarItem onClick={invertSelection}>
               Invert <MenubarShortcut>Ctrl+Shift+I</MenubarShortcut>
             </MenubarItem>
+            <MenubarSeparator className="separator" />
+            <MenubarSub>
+              <MenubarSubTrigger>Modify</MenubarSubTrigger>
+              <MenubarSubContent className="panel">
+                <MenubarItem
+                  onClick={() => openDialog('selectionExpand')}
+                  disabled={!selection.active}
+                >
+                  Expand...
+                </MenubarItem>
+                <MenubarItem
+                  onClick={() => openDialog('selectionShrink')}
+                  disabled={!selection.active}
+                >
+                  Shrink...
+                </MenubarItem>
+                <MenubarItem
+                  onClick={() => openDialog('selectionBorder')}
+                  disabled={!selection.active}
+                >
+                  Border...
+                </MenubarItem>
+                <MenubarSeparator className="separator" />
+                <MenubarItem
+                  onClick={() => openDialog('selectionFeather')}
+                  disabled={!selection.active}
+                >
+                  Feather...
+                </MenubarItem>
+                <MenubarItem
+                  onClick={() => openDialog('selectionSmooth')}
+                  disabled={!selection.active}
+                >
+                  Smooth
+                </MenubarItem>
+                <MenubarItem
+                  onClick={() => openDialog('selectionGrow')}
+                  disabled={!selection.active}
+                >
+                  Grow...
+                </MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
             <MenubarSeparator className="separator" />
             <MenubarItem>Select Color...</MenubarItem>
           </MenubarContent>
