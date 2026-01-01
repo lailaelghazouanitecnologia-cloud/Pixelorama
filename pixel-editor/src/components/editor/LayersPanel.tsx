@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react"
-import { useEditorStore, type BlendMode } from "@/store/editor-store"
+import { useEditorStore, type BlendMode, type Layer } from "@/store/editor-store"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Plus,
@@ -15,10 +15,14 @@ import {
   Unlock,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   Copy,
   Layers,
   Merge,
   Sparkles,
+  Folder,
+  FolderOpen,
+  Image,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -69,6 +73,10 @@ export function LayersPanel() {
     setLayerBlendMode,
     moveLayer,
     renameLayer,
+    addLayerGroup,
+    toggleGroupExpanded,
+    ungroupLayers,
+    mergeLayerDown,
   } = useEditorStore()
 
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null)
@@ -93,7 +101,11 @@ export function LayersPanel() {
     duplicateLayer(currentLayerIndex)
   }
 
-  const startRename = (layer: typeof layers[0]) => {
+  const handleMergeDown = () => {
+    mergeLayerDown(currentLayerIndex)
+  }
+
+  const startRename = (layer: Layer) => {
     setEditingLayerId(layer.id)
     setEditName(layer.name)
   }
@@ -103,6 +115,164 @@ export function LayersPanel() {
       renameLayer(index, editName.trim())
     }
     setEditingLayerId(null)
+  }
+
+  // Render a single layer item (recursive for groups)
+  const renderLayerItem = (layer: Layer, actualIndex: number, depth: number = 0) => {
+    const isActive = actualIndex === currentLayerIndex
+    const isEditing = editingLayerId === layer.id
+    const isGroup = layer.type === 'group'
+    const isExpanded = layer.expanded !== false // default to expanded
+
+    return (
+      <div key={layer.id}>
+        <div
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer transition-all",
+            isActive
+              ? "bg-pix-accent/20 border border-pix-accent/40"
+              : "hover:bg-white/5 border border-transparent"
+          )}
+          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          onClick={() => setCurrentLayer(actualIndex)}
+          onDoubleClick={() => startRename(layer)}
+        >
+          {/* Group expand/collapse toggle */}
+          {isGroup && (
+            <button
+              className="p-0.5 rounded transition-colors text-pix-text-muted hover:text-pix-text"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleGroupExpanded(actualIndex)
+              }}
+              title={isExpanded ? "Collapse Group" : "Expand Group"}
+            >
+              <ChevronRight
+                className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-90")}
+              />
+            </button>
+          )}
+
+          {/* Visibility toggle */}
+          <button
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              layer.visible ? "text-pix-text hover:text-pix-accent" : "text-pix-text-muted hover:text-pix-text"
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleLayerVisibility(actualIndex)
+            }}
+            title={layer.visible ? "Hide Layer" : "Show Layer"}
+          >
+            {layer.visible ? (
+              <Eye className="w-3.5 h-3.5" />
+            ) : (
+              <EyeOff className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Lock toggle */}
+          <button
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              layer.locked ? "text-pix-warning" : "text-pix-text-muted hover:text-pix-text"
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleLayerLock(actualIndex)
+            }}
+            title={layer.locked ? "Unlock Layer" : "Lock Layer"}
+          >
+            {layer.locked ? (
+              <Lock className="w-3.5 h-3.5" />
+            ) : (
+              <Unlock className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Layer type icon / thumbnail */}
+          {isGroup ? (
+            <div className="w-6 h-6 flex items-center justify-center text-pix-accent">
+              {isExpanded ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
+            </div>
+          ) : (
+            <div
+              className="w-6 h-6 rounded border flex-shrink-0 checker-bg flex items-center justify-center"
+              style={{ borderColor: isActive ? 'var(--pix-accent)' : 'var(--pix-border)' }}
+            >
+              {!layer.data && <Image className="w-3 h-3 text-pix-text-muted" />}
+            </div>
+          )}
+
+          {/* Layer name */}
+          {isEditing ? (
+            <input
+              type="text"
+              className="input flex-1 h-5 text-xs px-1"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={() => finishRename(actualIndex)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') finishRename(actualIndex)
+                if (e.key === 'Escape') setEditingLayerId(null)
+              }}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className={cn(
+              "flex-1 text-pix-xs truncate",
+              isActive ? "text-pix-text" : "text-pix-text-secondary",
+              isGroup && "font-medium"
+            )}>
+              {layer.name}
+            </span>
+          )}
+
+          {/* Child count for groups */}
+          {isGroup && layer.children && layer.children.length > 0 && (
+            <span className="text-pix-xs text-pix-text-muted">
+              ({layer.children.length})
+            </span>
+          )}
+
+          {/* Opacity badge */}
+          {layer.opacity < 100 && (
+            <span className="text-pix-xs text-pix-text-muted font-mono">
+              {layer.opacity}%
+            </span>
+          )}
+        </div>
+
+        {/* Render children if group is expanded */}
+        {isGroup && isExpanded && layer.children && layer.children.length > 0 && (
+          <div className="border-l border-pix-border/30 ml-4">
+            {[...layer.children].reverse().map((child, childIdx) => {
+              // Note: children don't have their own index in the flat layers array
+              // This is a simplified view - for full functionality, we'd need a flattened index system
+              return (
+                <div
+                  key={child.id}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 cursor-pointer transition-all",
+                    "hover:bg-white/5"
+                  )}
+                  style={{ paddingLeft: `${8 + (depth + 1) * 16}px` }}
+                >
+                  <Eye className="w-3 h-3 text-pix-text-muted" />
+                  <div className="w-5 h-5 rounded border checker-bg flex-shrink-0"
+                    style={{ borderColor: 'var(--pix-border)' }} />
+                  <span className="text-pix-xs text-pix-text-secondary truncate">
+                    {child.name}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -184,99 +354,7 @@ export function LayersPanel() {
               {/* Render from top to bottom (reversed array) */}
               {[...layers].reverse().map((layer, reversedIndex) => {
                 const actualIndex = layers.length - 1 - reversedIndex
-                const isActive = actualIndex === currentLayerIndex
-                const isEditing = editingLayerId === layer.id
-
-                return (
-                  <div
-                    key={layer.id}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all",
-                      isActive
-                        ? "bg-pix-accent/20 border border-pix-accent/40"
-                        : "hover:bg-white/5 border border-transparent"
-                    )}
-                    onClick={() => setCurrentLayer(actualIndex)}
-                    onDoubleClick={() => startRename(layer)}
-                  >
-                    {/* Visibility toggle */}
-                    <button
-                      className={cn(
-                        "p-0.5 rounded transition-colors",
-                        layer.visible ? "text-pix-text hover:text-pix-accent" : "text-pix-text-muted hover:text-pix-text"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleLayerVisibility(actualIndex)
-                      }}
-                      title={layer.visible ? "Hide Layer" : "Show Layer"}
-                    >
-                      {layer.visible ? (
-                        <Eye className="w-3.5 h-3.5" />
-                      ) : (
-                        <EyeOff className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-
-                    {/* Lock toggle */}
-                    <button
-                      className={cn(
-                        "p-0.5 rounded transition-colors",
-                        layer.locked ? "text-pix-warning" : "text-pix-text-muted hover:text-pix-text"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleLayerLock(actualIndex)
-                      }}
-                      title={layer.locked ? "Unlock Layer" : "Lock Layer"}
-                    >
-                      {layer.locked ? (
-                        <Lock className="w-3.5 h-3.5" />
-                      ) : (
-                        <Unlock className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-
-                    {/* Layer thumbnail */}
-                    <div
-                      className="w-8 h-8 rounded border flex-shrink-0 checker-bg"
-                      style={{ borderColor: isActive ? 'var(--pix-accent)' : 'var(--pix-border)' }}
-                    >
-                      {/* Thumbnail would be rendered here */}
-                    </div>
-
-                    {/* Layer name */}
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        className="input flex-1 h-5 text-xs px-1"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onBlur={() => finishRename(actualIndex)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') finishRename(actualIndex)
-                          if (e.key === 'Escape') setEditingLayerId(null)
-                        }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className={cn(
-                        "flex-1 text-pix-xs truncate",
-                        isActive ? "text-pix-text" : "text-pix-text-secondary"
-                      )}>
-                        {layer.name}
-                      </span>
-                    )}
-
-                    {/* Opacity badge */}
-                    {layer.opacity < 100 && (
-                      <span className="text-pix-xs text-pix-text-muted font-mono">
-                        {layer.opacity}%
-                      </span>
-                    )}
-                  </div>
-                )
+                return renderLayerItem(layer, actualIndex, 0)
               })}
             </div>
           </ScrollArea>
@@ -293,6 +371,13 @@ export function LayersPanel() {
               </button>
               <button
                 className="icon-btn"
+                onClick={() => addLayerGroup()}
+                title="Add Group"
+              >
+                <Folder className="w-4 h-4" />
+              </button>
+              <button
+                className="icon-btn"
                 onClick={handleDuplicate}
                 title="Duplicate Layer"
               >
@@ -300,8 +385,9 @@ export function LayersPanel() {
               </button>
               <button
                 className="icon-btn"
+                onClick={handleMergeDown}
                 title="Merge Down"
-                disabled={currentLayerIndex <= 0}
+                disabled={currentLayerIndex <= 0 || currentLayer?.type === 'group'}
               >
                 <Merge className="w-4 h-4" />
               </button>
@@ -326,10 +412,10 @@ export function LayersPanel() {
               </button>
               <button
                 className="icon-btn"
-                onClick={() => deleteLayer(currentLayerIndex)}
-                disabled={layers.length <= 1}
-                title="Delete Layer"
-                style={{ color: layers.length > 1 ? 'var(--pix-error)' : undefined }}
+                onClick={() => currentLayer?.type === 'group' ? ungroupLayers(currentLayerIndex) : deleteLayer(currentLayerIndex)}
+                disabled={layers.length <= 1 && currentLayer?.type !== 'group'}
+                title={currentLayer?.type === 'group' ? "Ungroup" : "Delete Layer"}
+                style={{ color: layers.length > 1 || currentLayer?.type === 'group' ? 'var(--pix-error)' : undefined }}
               >
                 <Trash2 className="w-4 h-4" />
               </button>

@@ -17,6 +17,8 @@ export type ToolName =
 
 export type ShadingMode = 'lighten' | 'darken'
 
+export type LayerType = 'pixel' | 'group'
+
 export interface Layer {
   id: string
   name: string
@@ -25,6 +27,11 @@ export interface Layer {
   opacity: number
   blendMode: BlendMode
   data: ImageData | null
+  // Group layer support
+  type: LayerType
+  children?: Layer[]  // Only for group layers
+  expanded?: boolean  // Group expand/collapse state
+  parentId?: string   // ID of parent group (null = root level)
 }
 
 // All 20 blend modes matching Pixelorama's BaseLayer.gd
@@ -199,6 +206,13 @@ export interface EditorState {
   flattenLayers: () => void
   setLayerData: (index: number, data: ImageData) => void
 
+  // Layer Groups
+  addLayerGroup: (name?: string) => void
+  groupLayers: (indices: number[]) => void
+  ungroupLayers: (index: number) => void
+  toggleGroupExpanded: (index: number) => void
+  moveLayerToGroup: (layerIndex: number, groupIndex: number | null) => void
+
   // Frames
   addFrame: () => void
   duplicateFrame: (index: number) => void
@@ -296,6 +310,20 @@ const createDefaultLayer = (id: string, name: string): Layer => ({
   opacity: 100,
   blendMode: 'normal',
   data: null,
+  type: 'pixel',
+})
+
+const createLayerGroup = (id: string, name: string): Layer => ({
+  id,
+  name,
+  visible: true,
+  locked: false,
+  opacity: 100,
+  blendMode: 'normal',
+  data: null,
+  type: 'group',
+  children: [],
+  expanded: true,
 })
 
 const createDefaultSelection = (): Selection => ({
@@ -735,6 +763,108 @@ export const useEditorStore = create<EditorState>()(
       ),
       modified: true,
     })),
+
+    // Layer Groups
+    addLayerGroup: (name) => set((state) => {
+      const id = `group-${Date.now()}`
+      const groupName = name || `Group ${state.layers.filter(l => l.type === 'group').length + 1}`
+      const newGroup = createLayerGroup(id, groupName)
+      return {
+        layers: [...state.layers, newGroup],
+        currentLayerIndex: state.layers.length,
+        modified: true,
+      }
+    }),
+
+    groupLayers: (indices) => set((state) => {
+      if (indices.length < 2) return state
+
+      // Sort indices in ascending order
+      const sortedIndices = [...indices].sort((a, b) => a - b)
+
+      // Get layers to group
+      const layersToGroup = sortedIndices.map(i => state.layers[i]).filter(Boolean)
+      if (layersToGroup.length < 2) return state
+
+      // Create new group
+      const groupId = `group-${Date.now()}`
+      const group = createLayerGroup(groupId, 'Group')
+      group.children = layersToGroup.map(l => ({ ...l, parentId: groupId }))
+
+      // Remove grouped layers and add group at the lowest position
+      const newLayers = state.layers.filter((_, i) => !sortedIndices.includes(i))
+      newLayers.splice(sortedIndices[0], 0, group)
+
+      return {
+        layers: newLayers,
+        currentLayerIndex: sortedIndices[0],
+        modified: true,
+      }
+    }),
+
+    ungroupLayers: (index) => set((state) => {
+      const group = state.layers[index]
+      if (!group || group.type !== 'group' || !group.children?.length) return state
+
+      // Extract children and remove parentId
+      const children = group.children.map(l => ({ ...l, parentId: undefined }))
+
+      // Replace group with its children
+      const newLayers = [...state.layers]
+      newLayers.splice(index, 1, ...children)
+
+      return {
+        layers: newLayers,
+        currentLayerIndex: index,
+        modified: true,
+      }
+    }),
+
+    toggleGroupExpanded: (index) => set((state) => ({
+      layers: state.layers.map((l, i) =>
+        i === index && l.type === 'group'
+          ? { ...l, expanded: !l.expanded }
+          : l
+      ),
+    })),
+
+    moveLayerToGroup: (layerIndex, groupIndex) => set((state) => {
+      const layer = state.layers[layerIndex]
+      if (!layer) return state
+
+      const newLayers = [...state.layers]
+
+      if (groupIndex === null) {
+        // Move out of group to root level
+        if (layer.parentId) {
+          // Find parent group and remove layer from it
+          const parentIdx = newLayers.findIndex(l => l.id === layer.parentId)
+          if (parentIdx !== -1 && newLayers[parentIdx].children) {
+            const parent = newLayers[parentIdx]
+            parent.children = parent.children!.filter(l => l.id !== layer.id)
+            // Add layer to root level after the group
+            newLayers.splice(parentIdx + 1, 0, { ...layer, parentId: undefined })
+          }
+        }
+      } else {
+        // Move into group
+        const group = newLayers[groupIndex]
+        if (!group || group.type !== 'group') return state
+
+        // Remove layer from current position
+        newLayers.splice(layerIndex, 1)
+
+        // Add to group's children
+        if (!group.children) group.children = []
+        group.children.push({ ...layer, parentId: group.id })
+      }
+
+      return {
+        layers: newLayers,
+        currentLayerIndex: groupIndex ?? layerIndex,
+        modified: true,
+      }
+    }),
 
     // Frames
     addFrame: () => set((state) => ({
