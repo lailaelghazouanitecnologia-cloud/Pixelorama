@@ -19,7 +19,11 @@ export * from './utility/Move'
 
 // Selection Tools
 export * from './selection/RectSelect'
+export * from './selection/EllipseSelect'
+export * from './selection/Lasso'
+export * from './selection/PolygonSelect'
 export * from './selection/MagicWand'
+export * from './selection/ColorSelect'
 
 // Re-export registry
 export { ToolRegistry, defineToolWithFactory } from './registry'

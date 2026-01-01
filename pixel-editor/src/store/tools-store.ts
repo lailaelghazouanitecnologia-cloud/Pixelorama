@@ -13,7 +13,7 @@ export type ToolCategory = 'design' | 'selection' | 'utility'
 // Tool names
 export type ToolName =
   | 'pencil' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'ellipse' | 'shading' | 'spray' | 'gradient'  // Design tools
-  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'magicWand' | 'colorSelect'           // Selection tools
+  | 'rectSelect' | 'ellipseSelect' | 'lasso' | 'polygonSelect' | 'magicWand' | 'colorSelect'           // Selection tools
   | 'colorPicker' | 'move' | 'pan' | 'zoom'                                          // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
@@ -45,6 +45,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   rectSelect: { name: 'rectSelect', displayName: 'Rectangle Select', icon: 'rectSelect', category: 'selection', shortcut: 'M' },
   ellipseSelect: { name: 'ellipseSelect', displayName: 'Ellipse Select', icon: 'ellipseSelect', category: 'selection', shortcut: 'J' },
   lasso: { name: 'lasso', displayName: 'Lasso', icon: 'lasso', category: 'selection', shortcut: 'Q' },
+  polygonSelect: { name: 'polygonSelect', displayName: 'Polygon Select', icon: 'polygonSelect', category: 'selection', shortcut: 'P' },
   magicWand: { name: 'magicWand', displayName: 'Magic Wand', icon: 'magicWand', category: 'selection', shortcut: 'W' },
   colorSelect: { name: 'colorSelect', displayName: 'Select by Color', icon: 'colorSelect', category: 'selection', shortcut: 'U' },
 
@@ -283,7 +284,7 @@ export const useToolsStore = create<ToolsState>()(
 
     isSelectionTool: (tool) => {
       const toolName = tool || get().currentTool
-      return ['rectSelect', 'ellipseSelect', 'lasso', 'magicWand'].includes(toolName)
+      return ['rectSelect', 'ellipseSelect', 'lasso', 'polygonSelect', 'magicWand', 'colorSelect'].includes(toolName)
     },
   }))
 )
