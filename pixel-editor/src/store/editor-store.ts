@@ -32,6 +32,8 @@ export interface Layer {
   children?: Layer[]  // Only for group layers
   expanded?: boolean  // Group expand/collapse state
   parentId?: string   // ID of parent group (null = root level)
+  // Clipping mask support
+  clipped?: boolean   // If true, this layer clips to the layer below
 }
 
 // All 20 blend modes matching Pixelorama's BaseLayer.gd
@@ -212,6 +214,10 @@ export interface EditorState {
   ungroupLayers: (index: number) => void
   toggleGroupExpanded: (index: number) => void
   moveLayerToGroup: (layerIndex: number, groupIndex: number | null) => void
+
+  // Clipping Masks
+  toggleClipping: (index: number) => void
+  setClipping: (index: number, clipped: boolean) => void
 
   // Frames
   addFrame: () => void
@@ -862,6 +868,31 @@ export const useEditorStore = create<EditorState>()(
       return {
         layers: newLayers,
         currentLayerIndex: groupIndex ?? layerIndex,
+        modified: true,
+      }
+    }),
+
+    // Clipping Masks
+    toggleClipping: (index) => set((state) => {
+      // Can't clip the bottom layer (index 0)
+      if (index <= 0) return state
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === index ? { ...l, clipped: !l.clipped } : l
+        ),
+        modified: true,
+      }
+    }),
+
+    setClipping: (index, clipped) => set((state) => {
+      // Can't clip the bottom layer (index 0)
+      if (index <= 0 && clipped) return state
+
+      return {
+        layers: state.layers.map((l, i) =>
+          i === index ? { ...l, clipped } : l
+        ),
         modified: true,
       }
     }),

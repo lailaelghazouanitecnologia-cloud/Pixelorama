@@ -23,6 +23,8 @@ import {
   Folder,
   FolderOpen,
   Image,
+  Link,
+  Unlink,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -77,6 +79,7 @@ export function LayersPanel() {
     toggleGroupExpanded,
     ungroupLayers,
     mergeLayerDown,
+    toggleClipping,
   } = useEditorStore()
 
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null)
@@ -123,15 +126,24 @@ export function LayersPanel() {
     const isEditing = editingLayerId === layer.id
     const isGroup = layer.type === 'group'
     const isExpanded = layer.expanded !== false // default to expanded
+    const isClipped = layer.clipped === true
+    const canClip = actualIndex > 0 && !isGroup // Can't clip bottom layer or groups
 
     return (
       <div key={layer.id}>
+        {/* Clipping indicator line */}
+        {isClipped && (
+          <div className="flex items-center ml-6 -mb-1">
+            <div className="w-3 h-3 border-l-2 border-b-2 border-pix-accent/60 rounded-bl" />
+          </div>
+        )}
         <div
           className={cn(
             "flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer transition-all",
             isActive
               ? "bg-pix-accent/20 border border-pix-accent/40"
-              : "hover:bg-white/5 border border-transparent"
+              : "hover:bg-white/5 border border-transparent",
+            isClipped && "ml-3" // Indent clipped layers
           )}
           style={{ paddingLeft: `${8 + depth * 16}px` }}
           onClick={() => setCurrentLayer(actualIndex)}
@@ -150,6 +162,23 @@ export function LayersPanel() {
               <ChevronRight
                 className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-90")}
               />
+            </button>
+          )}
+
+          {/* Clipping mask toggle */}
+          {canClip && (
+            <button
+              className={cn(
+                "p-0.5 rounded transition-colors",
+                isClipped ? "text-pix-accent" : "text-pix-text-muted/50 hover:text-pix-text-muted"
+              )}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleClipping(actualIndex)
+              }}
+              title={isClipped ? "Unclip Layer" : "Clip to Layer Below"}
+            >
+              {isClipped ? <Link className="w-3 h-3" /> : <Unlink className="w-3 h-3" />}
             </button>
           )}
 
