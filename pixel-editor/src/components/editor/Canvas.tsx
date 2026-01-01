@@ -18,6 +18,7 @@ import { compositeFrameLayers } from "@/core/layerCanvas"
 import { getOnionSkinManager, renderOnionSkin, type OnionSkinSettings } from "@/core/onionSkin"
 import { CanvasRulers, RULER_SIZE_PX } from "./Rulers"
 import { GuidesOverlay } from "./GuidesOverlay"
+import { TilePreviewGrid } from "./TilePreview"
 import type { DrawingContext } from "@/core/types"
 
 // Import and register tools (side effects)
@@ -89,6 +90,7 @@ export function Canvas() {
     fps,
     nextFrame,
     history,
+    tileMode,
   } = useEditorStore()
 
   // Tool state from tools-store
@@ -768,6 +770,19 @@ export function Canvas() {
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
+          )}
+
+          {/* Tile mode preview - 8 copies around the main canvas */}
+          {tileMode && (
+            <TilePreviewGrid
+              sourceCanvas={displayCanvasRef.current}
+              width={width}
+              height={height}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              layers={layers}
+              currentLayerIndex={currentLayerIndex}
+            />
           )}
 
           {/* Guides overlay */}

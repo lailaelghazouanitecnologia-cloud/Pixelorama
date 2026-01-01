@@ -114,6 +114,7 @@ export interface EditorState {
   showGuides: boolean
   snapToGrid: boolean
   snapToGuides: boolean
+  tileMode: boolean
   gridSize: number
   guides: Guide[]
 
@@ -219,6 +220,7 @@ export interface EditorState {
   toggleGuides: () => void
   toggleSnapToGrid: () => void
   toggleSnapToGuides: () => void
+  toggleTileMode: () => void
   setGridSize: (size: number) => void
   setCanvasSize: (width: number, height: number) => void
   cropCanvas: (x: number, y: number, newWidth: number, newHeight: number) => void
@@ -351,6 +353,7 @@ export const useEditorStore = create<EditorState>()(
     showGuides: true,
     snapToGrid: false,
     snapToGuides: true,
+    tileMode: false,
     gridSize: 8,
     guides: [],
     mirrorView: false,
@@ -1032,6 +1035,7 @@ export const useEditorStore = create<EditorState>()(
     toggleGuides: () => set((state) => ({ showGuides: !state.showGuides })),
     toggleSnapToGrid: () => set((state) => ({ snapToGrid: !state.snapToGrid })),
     toggleSnapToGuides: () => set((state) => ({ snapToGuides: !state.snapToGuides })),
+    toggleTileMode: () => set((state) => ({ tileMode: !state.tileMode })),
     setGridSize: (size) => set({ gridSize: Math.max(1, Math.min(64, size)) }),
     setCanvasSize: (width, height) => set({ width, height, modified: true }),
 

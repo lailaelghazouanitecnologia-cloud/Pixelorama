@@ -73,6 +73,8 @@ export function TopMenu() {
     rotate180,
     mirrorView,
     toggleMirrorView,
+    tileMode,
+    toggleTileMode,
     cut,
     copy,
     paste,
@@ -269,6 +271,9 @@ export function TopMenu() {
             </MenubarSub>
             <MenubarCheckboxItem checked={mirrorView} onClick={toggleMirrorView}>
               Mirror View
+            </MenubarCheckboxItem>
+            <MenubarCheckboxItem checked={tileMode} onClick={toggleTileMode}>
+              Tile Mode
             </MenubarCheckboxItem>
           </MenubarContent>
         </MenubarMenu>
