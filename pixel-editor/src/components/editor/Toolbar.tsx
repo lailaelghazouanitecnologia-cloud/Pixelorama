@@ -31,6 +31,8 @@ import {
   Crop,
   Pentagon,
   Paintbrush,
+  SprayCan,
+  Contrast,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToolsStore, type ToolName } from "@/store/tools-store"
@@ -122,6 +124,18 @@ export function Toolbar() {
           icon={<Sun className="w-4 h-4" />}
           label="Dodge/Burn"
           shortcut=","
+        />
+        <ToolButton
+          tool="spray"
+          icon={<SprayCan className="w-4 h-4" />}
+          label="Spray"
+          shortcut="S"
+        />
+        <ToolButton
+          tool="shading"
+          icon={<Contrast className="w-4 h-4" />}
+          label="Shading"
+          shortcut="D"
         />
 
         <ToolSeparator />

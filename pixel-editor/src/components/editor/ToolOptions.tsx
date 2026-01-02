@@ -65,7 +65,17 @@ export function ToolOptions() {
     toggleSnapToGrid,
     canUndo,
     canRedo,
+    flipHorizontal,
+    flipVertical,
   } = useEditorStore()
+
+  // Selection settings from tools-store
+  const {
+    selectionMode,
+    setSelectionMode,
+    selectionTolerance,
+    setSelectionTolerance,
+  } = useToolsStore()
 
   const history = getHistory()
 
@@ -548,7 +558,11 @@ export function ToolOptions() {
         {showSelectionOptions && (
           <div className="flex items-center gap-2">
             <span className="text-pix-xs text-pix-text-muted">Mode:</span>
-            <select className="input py-0 text-pix-xs">
+            <select
+              className="input py-0 text-pix-xs"
+              value={selectionMode}
+              onChange={(e) => setSelectionMode(e.target.value as 'replace' | 'add' | 'subtract' | 'intersect')}
+            >
               <option value="replace">Replace</option>
               <option value="add">Add (Shift)</option>
               <option value="subtract">Subtract (Alt)</option>
@@ -561,7 +575,8 @@ export function ToolOptions() {
                 <input
                   type="number"
                   className="input w-12 text-center text-pix-xs py-0"
-                  defaultValue={0}
+                  value={selectionTolerance}
+                  onChange={(e) => setSelectionTolerance(parseInt(e.target.value) || 0)}
                   min={0}
                   max={255}
                 />
@@ -611,7 +626,7 @@ export function ToolOptions() {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="icon-btn">
+              <button className="icon-btn" onClick={flipHorizontal}>
                 <FlipHorizontal className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>
@@ -622,7 +637,7 @@ export function ToolOptions() {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="icon-btn">
+              <button className="icon-btn" onClick={flipVertical}>
                 <FlipVertical className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>

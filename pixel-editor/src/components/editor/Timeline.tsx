@@ -5,6 +5,7 @@
 
 import { useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
+import { useUIStore } from "@/store/ui-store"
 import {
   Play,
   Pause,
@@ -26,6 +27,7 @@ import { OnionSkinDialog } from "@/components/dialogs"
 
 export function Timeline() {
   const [onionSkinOpen, setOnionSkinOpen] = useState(false)
+  const { openDialog } = useUIStore()
 
   const {
     frames,
@@ -207,7 +209,7 @@ export function Timeline() {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="icon-btn">
+              <button className="icon-btn" onClick={() => openDialog('animationTags')}>
                 <Settings className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>

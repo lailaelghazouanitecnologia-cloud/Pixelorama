@@ -20,6 +20,7 @@ export type ToolName =
   | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'transform' | 'tileMap'  // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
+export type SelectionMode = 'replace' | 'add' | 'subtract' | 'intersect'
 
 // Tool configuration interface
 export interface ToolConfig {
@@ -129,6 +130,10 @@ export interface ToolsState {
   // Alpha lock
   alphaLocked: boolean
 
+  // Selection settings
+  selectionMode: SelectionMode
+  selectionTolerance: number
+
   // Actions
   setTool: (tool: ToolName) => void
   setPreviousTool: () => void
@@ -156,6 +161,8 @@ export interface ToolsState {
   setStabilizerEnabled: (enabled: boolean) => void
   setStabilizerValue: (value: number) => void
   setAlphaLocked: (locked: boolean) => void
+  setSelectionMode: (mode: SelectionMode) => void
+  setSelectionTolerance: (tolerance: number) => void
   setCurrentBrushType: (type: BrushType) => void
   setCurrentBrushId: (id: string | null) => void
 
@@ -221,6 +228,10 @@ export const useToolsStore = create<ToolsState>()(
 
     // Alpha lock
     alphaLocked: false,
+
+    // Selection settings
+    selectionMode: 'replace' as SelectionMode,
+    selectionTolerance: 0,
 
     // === Actions ===
 
@@ -292,6 +303,12 @@ export const useToolsStore = create<ToolsState>()(
     }),
 
     setAlphaLocked: (locked) => set({ alphaLocked: locked }),
+
+    setSelectionMode: (mode) => set({ selectionMode: mode }),
+
+    setSelectionTolerance: (tolerance) => set({
+      selectionTolerance: Math.max(0, Math.min(255, tolerance))
+    }),
 
     setCurrentBrushType: (type) => set({ currentBrushType: type }),
 
