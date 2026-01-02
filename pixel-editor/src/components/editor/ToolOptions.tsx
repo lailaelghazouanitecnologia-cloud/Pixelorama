@@ -6,7 +6,7 @@
 import { useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon, Anchor } from "lucide-react"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon, Anchor, PaintBucket } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
@@ -36,6 +36,8 @@ export function ToolOptions() {
     setSpacingMode,
     spacing,
     setSpacing,
+    fillInside,
+    setFillInside,
     filled,
     setFilled,
     bucketTolerance,
@@ -439,6 +441,20 @@ export function ToolOptions() {
                 />
               </div>
             )}
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${fillInside ? 'active' : ''}`}
+                  onClick={() => setFillInside(!fillInside)}
+                >
+                  <PaintBucket className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Fill Inside (auto-fill closed paths)</p>
+              </TooltipContent>
+            </Tooltip>
           </>
         )}
 

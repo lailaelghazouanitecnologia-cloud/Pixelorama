@@ -93,6 +93,9 @@ export interface ToolsState {
   spacingMode: boolean
   spacing: { x: number; y: number }
 
+  // Fill Inside (for pencil tool - fills closed path)
+  fillInside: boolean
+
   // Shape settings
   filled: boolean
 
@@ -149,6 +152,7 @@ export interface ToolsState {
   setOverwrite: (enabled: boolean) => void
   setSpacingMode: (enabled: boolean) => void
   setSpacing: (x: number, y: number) => void
+  setFillInside: (enabled: boolean) => void
   setFilled: (filled: boolean) => void
   setBucketTolerance: (tolerance: number) => void
   setShadingType: (type: ShadingType) => void
@@ -201,6 +205,9 @@ export const useToolsStore = create<ToolsState>()(
     // Spacing
     spacingMode: false,
     spacing: { x: 1, y: 1 },
+
+    // Fill Inside
+    fillInside: false,
 
     // Shape settings
     filled: false,
@@ -276,6 +283,8 @@ export const useToolsStore = create<ToolsState>()(
     setSpacing: (x, y) => set({
       spacing: { x: Math.max(1, x), y: Math.max(1, y) }
     }),
+
+    setFillInside: (enabled) => set({ fillInside: enabled }),
 
     setFilled: (filled) => set({ filled }),
 
