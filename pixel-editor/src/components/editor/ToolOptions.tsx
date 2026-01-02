@@ -776,7 +776,7 @@ export function ToolOptions() {
 }
 
 /**
- * Bucket Options - Tolerance and Pattern Fill settings
+ * Bucket Options - Fill Area, Tolerance and Pattern Fill settings
  */
 function BucketOptions({
   bucketTolerance,
@@ -785,6 +785,11 @@ function BucketOptions({
   bucketTolerance: number
   setBucketTolerance: (v: number) => void
 }) {
+  const {
+    bucketFillArea,
+    setBucketFillArea,
+  } = useToolsStore()
+
   const {
     usePatternFill,
     setUsePatternFill,
@@ -797,23 +802,39 @@ function BucketOptions({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
-      <input
-        type="range"
-        className="slider w-20"
-        value={bucketTolerance}
-        onChange={(e) => setBucketTolerance(parseInt(e.target.value))}
-        min={0}
-        max={255}
-      />
-      <input
-        type="number"
-        className="input w-12 text-center text-pix-xs py-0"
-        value={bucketTolerance}
-        onChange={(e) => setBucketTolerance(parseInt(e.target.value) || 0)}
-        min={0}
-        max={255}
-      />
+      <span className="text-pix-xs text-pix-text-muted">Fill:</span>
+      <select
+        className="input py-0 text-pix-xs"
+        value={bucketFillArea}
+        onChange={(e) => setBucketFillArea(e.target.value as 'area' | 'colors' | 'selection')}
+      >
+        <option value="area">Area</option>
+        <option value="colors">Same Color</option>
+        <option value="selection">Selection</option>
+      </select>
+
+      {bucketFillArea !== 'selection' && (
+        <>
+          <div className="separator-v h-4 mx-1" />
+          <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
+          <input
+            type="range"
+            className="slider w-16"
+            value={bucketTolerance}
+            onChange={(e) => setBucketTolerance(parseInt(e.target.value))}
+            min={0}
+            max={255}
+          />
+          <input
+            type="number"
+            className="input w-10 text-center text-pix-xs py-0"
+            value={bucketTolerance}
+            onChange={(e) => setBucketTolerance(parseInt(e.target.value) || 0)}
+            min={0}
+            max={255}
+          />
+        </>
+      )}
 
       <div className="separator-v h-4 mx-1" />
 

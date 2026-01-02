@@ -1,14 +1,21 @@
 /**
- * Bucket Tool - Flood fill tool with pattern support.
+ * Bucket Tool - Flood fill tool with pattern support and fill area modes.
  * Based on Pixelorama's Bucket.gd
+ *
+ * Fill Area modes:
+ * - 'area': Contiguous flood fill (default)
+ * - 'colors': Fill all pixels with same color
+ * - 'selection': Fill only selected area
  */
 
 import { BaseTool } from '../base/BaseTool'
 import { defineToolWithFactory, ToolRegistry } from '../registry'
 import type { Point, CanvasMouseEvent, DrawingContext, ToolConfig } from '@/core/types'
 import { LayerType } from '@/core/types'
-import { floodFill, hexToRgb } from '@/lib/drawing'
+import { floodFill, hexToRgb, colorsMatch } from '@/lib/drawing'
 import { usePatternStore } from '@/core/patterns'
+import { useToolsStore } from '@/store/tools-store'
+import { useEditorStore } from '@/store/editor-store'
 
 interface BucketConfig extends ToolConfig {
   tolerance: number
@@ -42,7 +49,20 @@ export class BucketTool extends BaseTool {
     _event: CanvasMouseEvent,
     ctx: DrawingContext
   ): void {
-    this.fill(pos, ctx)
+    const toolsStore = useToolsStore.getState()
+    const fillArea = toolsStore.bucketFillArea
+
+    switch (fillArea) {
+      case 'area':
+        this.fillArea(pos, ctx)
+        break
+      case 'colors':
+        this.fillColors(pos, ctx)
+        break
+      case 'selection':
+        this.fillSelection(ctx)
+        break
+    }
   }
 
   protected override onDrawMove(): void {
@@ -53,7 +73,10 @@ export class BucketTool extends BaseTool {
     // Nothing to do
   }
 
-  private fill(pos: Point, ctx: DrawingContext): void {
+  /**
+   * Fill contiguous area (flood fill)
+   */
+  private fillArea(pos: Point, ctx: DrawingContext): void {
     const { ctx: context, canvas, color } = ctx
     const patternStore = usePatternStore.getState()
 
@@ -83,6 +106,123 @@ export class BucketTool extends BaseTool {
     }
 
     // Put image data back
+    context.putImageData(imageData, 0, 0)
+  }
+
+  /**
+   * Fill all pixels with same color (non-contiguous)
+   */
+  private fillColors(pos: Point, ctx: DrawingContext): void {
+    const { ctx: context, canvas, color } = ctx
+    const patternStore = usePatternStore.getState()
+
+    // Get image data
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+
+    // Get target color at click position
+    const targetIndex = (pos.y * canvas.width + pos.x) * 4
+    const targetR = imageData.data[targetIndex]
+    const targetG = imageData.data[targetIndex + 1]
+    const targetB = imageData.data[targetIndex + 2]
+    const targetA = imageData.data[targetIndex + 3]
+
+    const fillColor = hexToRgb(color)
+    const points: Point[] = []
+
+    // Find all matching pixels
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const index = (y * canvas.width + x) * 4
+        if (colorsMatch(
+          imageData.data[index],
+          imageData.data[index + 1],
+          imageData.data[index + 2],
+          imageData.data[index + 3],
+          targetR, targetG, targetB, targetA,
+          this.tolerance
+        )) {
+          points.push({ x, y })
+        }
+      }
+    }
+
+    if (points.length === 0) {
+      return
+    }
+
+    // Fill with pattern or color
+    if (patternStore.usePatternFill && patternStore.currentPattern) {
+      this.fillWithPattern(imageData, points, patternStore.currentPattern.image, patternStore.patternOffset)
+    } else {
+      for (const point of points) {
+        const index = (point.y * canvas.width + point.x) * 4
+        imageData.data[index] = fillColor.r
+        imageData.data[index + 1] = fillColor.g
+        imageData.data[index + 2] = fillColor.b
+        imageData.data[index + 3] = fillColor.a
+      }
+    }
+
+    context.putImageData(imageData, 0, 0)
+  }
+
+  /**
+   * Fill only selected area
+   */
+  private fillSelection(ctx: DrawingContext): void {
+    const { ctx: context, canvas, color } = ctx
+    const editorStore = useEditorStore.getState()
+    const patternStore = usePatternStore.getState()
+    const selection = editorStore.selection
+
+    if (!selection.active) {
+      return
+    }
+
+    // Get image data
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    const fillColor = hexToRgb(color)
+    const points: Point[] = []
+
+    // Get pixels in selection
+    if (selection.mask) {
+      // Complex selection with mask
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const maskIndex = (y * canvas.width + x) * 4 + 3
+          if (selection.mask.data[maskIndex] > 0) {
+            points.push({ x, y })
+          }
+        }
+      }
+    } else {
+      // Simple rectangular selection
+      for (let y = selection.y; y < selection.y + selection.height; y++) {
+        for (let x = selection.x; x < selection.x + selection.width; x++) {
+          if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+            points.push({ x, y })
+          }
+        }
+      }
+    }
+
+    if (points.length === 0) {
+      return
+    }
+
+    // Fill with pattern or color
+    if (patternStore.usePatternFill && patternStore.currentPattern) {
+      this.fillWithPattern(imageData, points, patternStore.currentPattern.image, patternStore.patternOffset)
+    } else {
+      for (const point of points) {
+        const index = (point.y * canvas.width + point.x) * 4
+        imageData.data[index] = fillColor.r
+        imageData.data[index + 1] = fillColor.g
+        imageData.data[index + 2] = fillColor.b
+        imageData.data[index + 3] = fillColor.a
+      }
+    }
+
     context.putImageData(imageData, 0, 0)
   }
 

@@ -316,6 +316,22 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
+ * Check if two colors match within a tolerance.
+ * Used for color-based flood fill operations.
+ */
+export function colorsMatch(
+  r1: number, g1: number, b1: number, a1: number,
+  r2: number, g2: number, b2: number, a2: number,
+  tolerance: number
+): boolean {
+  const dr = Math.abs(r1 - r2)
+  const dg = Math.abs(g1 - g2)
+  const db = Math.abs(b1 - b2)
+  const da = Math.abs(a1 - a2)
+  return dr <= tolerance && dg <= tolerance && db <= tolerance && da <= tolerance
+}
+
+/**
  * Get pixel color from ImageData.
  */
 export function getPixelColor(

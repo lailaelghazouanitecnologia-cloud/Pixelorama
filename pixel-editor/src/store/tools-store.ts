@@ -101,6 +101,7 @@ export interface ToolsState {
 
   // Bucket settings
   bucketTolerance: number
+  bucketFillArea: 'area' | 'colors' | 'selection'
 
   // Shading settings
   shadingType: ShadingType
@@ -155,6 +156,7 @@ export interface ToolsState {
   setFillInside: (enabled: boolean) => void
   setFilled: (filled: boolean) => void
   setBucketTolerance: (tolerance: number) => void
+  setBucketFillArea: (area: 'area' | 'colors' | 'selection') => void
   setShadingType: (type: ShadingType) => void
   setShadingMode: (mode: ShadingMode) => void
   setShadingAmount: (amount: number) => void
@@ -214,6 +216,7 @@ export const useToolsStore = create<ToolsState>()(
 
     // Bucket settings
     bucketTolerance: 0,
+    bucketFillArea: 'area' as const,
 
     // Shading settings
     shadingType: 'simple' as ShadingType,
@@ -291,6 +294,8 @@ export const useToolsStore = create<ToolsState>()(
     setBucketTolerance: (tolerance) => set({
       bucketTolerance: Math.max(0, Math.min(255, tolerance))
     }),
+
+    setBucketFillArea: (area) => set({ bucketFillArea: area }),
 
     setShadingType: (type) => set({ shadingType: type }),
 
