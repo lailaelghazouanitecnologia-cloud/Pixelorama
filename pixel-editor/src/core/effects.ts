@@ -1094,6 +1094,9 @@ export type EffectType =
   | 'rotate90CW'
   | 'rotate90CCW'
   | 'rotate180'
+  | 'convolutionMatrix'
+  | 'palettize'
+  | 'dither'
 
 export interface EffectDefinition {
   id: EffectType
@@ -1464,7 +1467,236 @@ export function applyEffect(
       return applyRotate90CCW(imageData)
     case 'rotate180':
       return applyRotate180(imageData)
+    case 'convolutionMatrix':
+      return applyConvolutionMatrix(
+        imageData,
+        (params.matrix as number[]) ?? [0, 0, 0, 0, 1, 0, 0, 0, 0],
+        (params.divisor as number) ?? 1,
+        (params.offset as number) ?? 0
+      )
+    case 'palettize':
+      return applyPalettize(
+        imageData,
+        (params.palette as string[]) ?? ['#000000', '#ffffff']
+      )
+    case 'dither':
+      return applyDither(
+        imageData,
+        (params.palette as string[]) ?? ['#000000', '#ffffff'],
+        (params.strength as number) ?? 1.0
+      )
     default:
       return imageData
   }
+}
+
+// === ADDITIONAL EFFECTS ===
+
+/**
+ * Apply convolution matrix filter
+ * Allows custom kernel operations (emboss, sharpen, blur, edge detect, etc.)
+ */
+export function applyConvolutionMatrix(
+  imageData: ImageData,
+  matrix: number[],  // 3x3 or 5x5 kernel as flat array
+  divisor: number = 1,
+  offset: number = 0
+): ImageData {
+  const width = imageData.width
+  const height = imageData.height
+  const srcData = imageData.data
+  const dstData = new Uint8ClampedArray(srcData.length)
+
+  // Determine kernel size (3x3 or 5x5)
+  const size = Math.sqrt(matrix.length)
+  if (size !== 3 && size !== 5) {
+    console.error('Convolution matrix must be 3x3 (9 values) or 5x5 (25 values)')
+    return imageData
+  }
+
+  const half = Math.floor(size / 2)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0
+      let ki = 0
+
+      for (let ky = -half; ky <= half; ky++) {
+        for (let kx = -half; kx <= half; kx++) {
+          const px = clamp(x + kx, 0, width - 1)
+          const py = clamp(y + ky, 0, height - 1)
+          const pidx = (py * width + px) * 4
+
+          r += srcData[pidx] * matrix[ki]
+          g += srcData[pidx + 1] * matrix[ki]
+          b += srcData[pidx + 2] * matrix[ki]
+          ki++
+        }
+      }
+
+      const dstIdx = (y * width + x) * 4
+      dstData[dstIdx] = clamp(r / divisor + offset, 0, 255)
+      dstData[dstIdx + 1] = clamp(g / divisor + offset, 0, 255)
+      dstData[dstIdx + 2] = clamp(b / divisor + offset, 0, 255)
+      dstData[dstIdx + 3] = srcData[dstIdx + 3]
+    }
+  }
+
+  return new ImageData(dstData, width, height)
+}
+
+/**
+ * Preset convolution kernels
+ */
+export const CONVOLUTION_PRESETS = {
+  identity: { matrix: [0, 0, 0, 0, 1, 0, 0, 0, 0], divisor: 1, offset: 0 },
+  sharpen: { matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0], divisor: 1, offset: 0 },
+  blur: { matrix: [1, 1, 1, 1, 1, 1, 1, 1, 1], divisor: 9, offset: 0 },
+  emboss: { matrix: [-2, -1, 0, -1, 1, 1, 0, 1, 2], divisor: 1, offset: 128 },
+  edgeEnhance: { matrix: [0, 0, 0, -1, 1, 0, 0, 0, 0], divisor: 1, offset: 0 },
+  edgeDetect: { matrix: [-1, -1, -1, -1, 8, -1, -1, -1, -1], divisor: 1, offset: 0 },
+  gaussianBlur: { matrix: [1, 2, 1, 2, 4, 2, 1, 2, 1], divisor: 16, offset: 0 },
+}
+
+/**
+ * Apply palettize - map all colors to nearest palette color
+ */
+export function applyPalettize(
+  imageData: ImageData,
+  palette: string[]
+): ImageData {
+  if (palette.length === 0) return imageData
+
+  const data = new Uint8ClampedArray(imageData.data)
+
+  // Parse palette colors
+  const paletteColors = palette.map(hex => ({
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  }))
+
+  // Find nearest palette color for each pixel
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+
+    // Find closest palette color using Euclidean distance
+    let minDist = Infinity
+    let closestColor = paletteColors[0]
+
+    for (const color of paletteColors) {
+      const dr = r - color.r
+      const dg = g - color.g
+      const db = b - color.b
+      const dist = dr * dr + dg * dg + db * db
+
+      if (dist < minDist) {
+        minDist = dist
+        closestColor = color
+      }
+    }
+
+    data[i] = closestColor.r
+    data[i + 1] = closestColor.g
+    data[i + 2] = closestColor.b
+  }
+
+  return new ImageData(data, imageData.width, imageData.height)
+}
+
+/**
+ * Apply dithering with palette
+ * Uses Floyd-Steinberg dithering algorithm
+ */
+export function applyDither(
+  imageData: ImageData,
+  palette: string[],
+  strength: number = 1.0
+): ImageData {
+  if (palette.length === 0) return imageData
+
+  const width = imageData.width
+  const height = imageData.height
+  const data = new Float32Array(imageData.data.length)
+
+  // Copy to float array for error diffusion
+  for (let i = 0; i < imageData.data.length; i++) {
+    data[i] = imageData.data[i]
+  }
+
+  // Parse palette colors
+  const paletteColors = palette.map(hex => ({
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  }))
+
+  // Floyd-Steinberg dithering
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+
+      if (data[i + 3] === 0) continue
+
+      const oldR = data[i]
+      const oldG = data[i + 1]
+      const oldB = data[i + 2]
+
+      // Find closest palette color
+      let minDist = Infinity
+      let newR = 0, newG = 0, newB = 0
+
+      for (const color of paletteColors) {
+        const dr = oldR - color.r
+        const dg = oldG - color.g
+        const db = oldB - color.b
+        const dist = dr * dr + dg * dg + db * db
+
+        if (dist < minDist) {
+          minDist = dist
+          newR = color.r
+          newG = color.g
+          newB = color.b
+        }
+      }
+
+      data[i] = newR
+      data[i + 1] = newG
+      data[i + 2] = newB
+
+      // Calculate quantization error
+      const errR = (oldR - newR) * strength
+      const errG = (oldG - newG) * strength
+      const errB = (oldB - newB) * strength
+
+      // Distribute error to neighboring pixels
+      const distribute = (dx: number, dy: number, weight: number) => {
+        const nx = x + dx
+        const ny = y + dy
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          const ni = (ny * width + nx) * 4
+          data[ni] += errR * weight
+          data[ni + 1] += errG * weight
+          data[ni + 2] += errB * weight
+        }
+      }
+
+      distribute(1, 0, 7 / 16)
+      distribute(-1, 1, 3 / 16)
+      distribute(0, 1, 5 / 16)
+      distribute(1, 1, 1 / 16)
+    }
+  }
+
+  // Convert back to Uint8ClampedArray
+  const result = new Uint8ClampedArray(data.length)
+  for (let i = 0; i < data.length; i++) {
+    result[i] = clamp(Math.round(data[i]), 0, 255)
+  }
+
+  return new ImageData(result, width, height)
 }
