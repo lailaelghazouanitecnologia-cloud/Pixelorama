@@ -127,7 +127,7 @@ function App() {
         </div>
 
         {/* Right Panels - Compact */}
-        <div className="w-48 flex flex-col border-l border-border">
+        <div className="w-56 flex flex-col border-l border-border">
           {/* Colors */}
           <div className="flex-1 min-h-0">
             <ColorPanel />

@@ -3,7 +3,7 @@
  * Based on Pixelorama's ToolOptions
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
 import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon, Anchor, PaintBucket } from "lucide-react"
@@ -12,6 +12,7 @@ import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
 import { BrushSelector } from "./BrushLibrary"
 import { usePatternStore } from "@/core/patterns"
+import { ToolRegistry } from "@/tools/registry"
 
 export function ToolOptions() {
   // Local state for new tools
@@ -22,6 +23,23 @@ export function ToolOptions() {
   const [dodgeBurnRange, setDodgeBurnRange] = useState<'shadows' | 'midtones' | 'highlights'>('midtones')
   const [textSize, setTextSize] = useState(16)
   const [curvePoints, setCurvePoints] = useState(2)
+  const [gradientType, setGradientType] = useState<'linear' | 'radial'>('linear')
+  const [gradientInterpolation, setGradientInterpolation] = useState<'linear' | 'step' | 'smooth'>('linear')
+  const [gradientSteps, setGradientSteps] = useState(8)
+  const [gradientDithering, setGradientDithering] = useState(true)
+
+  // Sync gradient options with tool
+  useEffect(() => {
+    const gradientTool = ToolRegistry.getInstance('gradient')
+    if (gradientTool) {
+      gradientTool.setConfig({
+        gradientType,
+        interpolation: gradientInterpolation,
+        steps: gradientSteps,
+        dithering: gradientDithering,
+      })
+    }
+  }, [gradientType, gradientInterpolation, gradientSteps, gradientDithering])
 
   // Tool-specific settings from tools-store
   const {
@@ -110,6 +128,7 @@ export function ToolOptions() {
   const showCloneStampOptions = currentTool === 'cloneStamp'
   const showDodgeBurnOptions = currentTool === 'dodgeBurn'
   const showTextOptions = currentTool === 'text'
+  const showGradientOptions = currentTool === 'gradient'
   const showCurveOptions = currentTool === 'curve'
   const showIsometricOptions = currentTool === 'isometricBox'
   const showTransformOptions = currentTool === 'transform'
@@ -287,6 +306,60 @@ export function ToolOptions() {
               max={128}
             />
             <span className="text-pix-xs text-pix-text-muted ml-2">Click to place text</span>
+          </div>
+        )}
+
+        {/* Gradient Options */}
+        {showGradientOptions && (
+          <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Type:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={gradientType}
+              onChange={(e) => setGradientType(e.target.value as 'linear' | 'radial')}
+            >
+              <option value="linear">Linear</option>
+              <option value="radial">Radial</option>
+            </select>
+            <div className="separator-v h-4" />
+            <span className="text-pix-xs text-pix-text-muted">Interp:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={gradientInterpolation}
+              onChange={(e) => setGradientInterpolation(e.target.value as 'linear' | 'step' | 'smooth')}
+            >
+              <option value="linear">Linear</option>
+              <option value="step">Stepped</option>
+              <option value="smooth">Smooth</option>
+            </select>
+            {gradientInterpolation === 'step' && (
+              <>
+                <span className="text-pix-xs text-pix-text-muted">Steps:</span>
+                <input
+                  type="number"
+                  className="input w-12 text-center text-pix-xs py-0"
+                  value={gradientSteps}
+                  onChange={(e) => setGradientSteps(Math.max(2, Math.min(64, parseInt(e.target.value) || 8)))}
+                  min={2}
+                  max={64}
+                />
+              </>
+            )}
+            <div className="separator-v h-4" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${gradientDithering ? 'active' : ''}`}
+                  onClick={() => setGradientDithering(!gradientDithering)}
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Enable Dithering</p>
+              </TooltipContent>
+            </Tooltip>
+            <span className="text-pix-xs text-pix-text-muted ml-2">Drag: Primary → Secondary color</span>
           </div>
         )}
 
