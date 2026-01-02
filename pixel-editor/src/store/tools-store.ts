@@ -43,7 +43,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   curve: { name: 'curve', displayName: 'Curve', icon: 'spline', category: 'design', shortcut: 'C' },
   rectangle: { name: 'rectangle', displayName: 'Rectangle', icon: 'rectangle', category: 'design', shortcut: 'R' },
   ellipse: { name: 'ellipse', displayName: 'Ellipse', icon: 'ellipse', category: 'design', shortcut: 'O' },
-  shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'D' },
+  shading: { name: 'shading', displayName: 'Shading', icon: 'shading', category: 'design', shortcut: 'U' },
   spray: { name: 'spray', displayName: 'Spray', icon: 'spray', category: 'design', shortcut: 'S' },
   gradient: { name: 'gradient', displayName: 'Gradient', icon: 'gradient', category: 'design', shortcut: 'F' },
   isometricBox: { name: 'isometricBox', displayName: 'Isometric Box', icon: 'box', category: 'design', shortcut: 'X' },
@@ -58,7 +58,7 @@ export const TOOL_REGISTRY: Record<ToolName, ToolConfig> = {
   lasso: { name: 'lasso', displayName: 'Lasso', icon: 'lasso', category: 'selection', shortcut: 'Q' },
   polygonSelect: { name: 'polygonSelect', displayName: 'Polygon Select', icon: 'polygonSelect', category: 'selection', shortcut: 'P' },
   magicWand: { name: 'magicWand', displayName: 'Magic Wand', icon: 'magicWand', category: 'selection', shortcut: 'W' },
-  colorSelect: { name: 'colorSelect', displayName: 'Select by Color', icon: 'colorSelect', category: 'selection', shortcut: 'U' },
+  colorSelect: { name: 'colorSelect', displayName: 'Select by Color', icon: 'colorSelect', category: 'selection', shortcut: ';' },
   paintSelect: { name: 'paintSelect', displayName: 'Paint Select', icon: 'paintbrush', category: 'selection', shortcut: 'A' },
 
   // Utility tools

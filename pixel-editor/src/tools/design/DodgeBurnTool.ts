@@ -344,5 +344,20 @@ export const BurnToolDefinition = defineToolWithFactory(
   }
 )
 
+// Combined Dodge/Burn Tool (default mode can be toggled)
+export const DodgeBurnToolDefinition = defineToolWithFactory(
+  'dodgeBurn',
+  'Dodge/Burn',
+  'sun',
+  'design',
+  () => new DodgeBurnTool(),
+  {
+    layerTypes: [LayerType.PIXEL],
+    hint: 'Lighten (Dodge) or Darken (Burn) areas. Right-click or hold Alt to switch modes.',
+    shortcut: ',',
+  }
+)
+
 ToolRegistry.register(DodgeToolDefinition)
 ToolRegistry.register(BurnToolDefinition)
+ToolRegistry.register(DodgeBurnToolDefinition)

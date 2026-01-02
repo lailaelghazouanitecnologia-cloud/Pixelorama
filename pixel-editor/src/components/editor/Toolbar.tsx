@@ -32,6 +32,7 @@ import {
   Paintbrush,
   SprayCan,
   Contrast,
+  Blend,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToolsStore, type ToolName } from "@/store/tools-store"
@@ -127,7 +128,13 @@ export function Toolbar() {
           tool="shading"
           icon={<Contrast className="w-4 h-4" />}
           label="Shading"
-          shortcut="D"
+          shortcut="U"
+        />
+        <ToolButton
+          tool="gradient"
+          icon={<Blend className="w-4 h-4" />}
+          label="Gradient"
+          shortcut="F"
         />
 
         <ToolSeparator />
@@ -207,7 +214,7 @@ export function Toolbar() {
           tool="colorSelect"
           icon={<Palette className="w-4 h-4" />}
           label="Select by Color"
-          shortcut="U"
+          shortcut=";"
         />
         <ToolButton
           tool="paintSelect"

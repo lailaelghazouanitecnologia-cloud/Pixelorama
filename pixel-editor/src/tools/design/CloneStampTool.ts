@@ -328,7 +328,7 @@ export const CloneStampToolDefinition = defineToolWithFactory(
   {
     layerTypes: [LayerType.PIXEL],
     hint: 'Alt+Click to set source, then paint to clone. Hold Alt to reset source.',
-    shortcut: 'S',
+    shortcut: 'N',
   }
 )
 
