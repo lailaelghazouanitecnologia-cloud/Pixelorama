@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
 import { BrushSelector } from "./BrushLibrary"
+import { usePatternStore } from "@/core/patterns"
 
 export function ToolOptions() {
   // Local state for new tools
@@ -506,25 +507,10 @@ export function ToolOptions() {
 
         {/* Bucket Options */}
         {showBucketOptions && (
-          <div className="flex items-center gap-2">
-            <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
-            <input
-              type="range"
-              className="slider w-20"
-              value={bucketTolerance}
-              onChange={(e) => setBucketTolerance(parseInt(e.target.value))}
-              min={0}
-              max={255}
-            />
-            <input
-              type="number"
-              className="input w-12 text-center text-pix-xs py-0"
-              value={bucketTolerance}
-              onChange={(e) => setBucketTolerance(parseInt(e.target.value) || 0)}
-              min={0}
-              max={255}
-            />
-          </div>
+          <BucketOptions
+            bucketTolerance={bucketTolerance}
+            setBucketTolerance={setBucketTolerance}
+          />
         )}
 
         {/* Shading Options */}
@@ -786,5 +772,78 @@ export function ToolOptions() {
         </div>
       </div>
     </TooltipProvider>
+  )
+}
+
+/**
+ * Bucket Options - Tolerance and Pattern Fill settings
+ */
+function BucketOptions({
+  bucketTolerance,
+  setBucketTolerance,
+}: {
+  bucketTolerance: number
+  setBucketTolerance: (v: number) => void
+}) {
+  const {
+    usePatternFill,
+    setUsePatternFill,
+    currentPattern,
+    setCurrentPattern,
+    getAllPatterns,
+  } = usePatternStore()
+
+  const patterns = getAllPatterns()
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-pix-xs text-pix-text-muted">Tolerance:</span>
+      <input
+        type="range"
+        className="slider w-20"
+        value={bucketTolerance}
+        onChange={(e) => setBucketTolerance(parseInt(e.target.value))}
+        min={0}
+        max={255}
+      />
+      <input
+        type="number"
+        className="input w-12 text-center text-pix-xs py-0"
+        value={bucketTolerance}
+        onChange={(e) => setBucketTolerance(parseInt(e.target.value) || 0)}
+        min={0}
+        max={255}
+      />
+
+      <div className="separator-v h-4 mx-1" />
+
+      <label className="flex items-center gap-1.5 text-pix-xs cursor-pointer">
+        <input
+          type="checkbox"
+          className="w-3 h-3"
+          checked={usePatternFill}
+          onChange={(e) => setUsePatternFill(e.target.checked)}
+        />
+        <span>Pattern</span>
+      </label>
+
+      {usePatternFill && (
+        <select
+          className="input py-0 text-pix-xs"
+          value={currentPattern?.id || ''}
+          onChange={(e) => {
+            const pattern = patterns.find(p => p.id === e.target.value)
+            setCurrentPattern(pattern || null)
+          }}
+        >
+          <option value="">Select pattern...</option>
+          {patterns.map((pattern) => (
+            <option key={pattern.id} value={pattern.id}>
+              {pattern.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
   )
 }
