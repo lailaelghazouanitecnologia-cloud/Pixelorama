@@ -314,9 +314,13 @@ export function compositeFrameLayers(
     opacity: number
     blendMode: string
     data: ImageData | null
+    effects?: import('@/core/layerEffects').AnyLayerEffect[]
   }>
 ): ImageData | null {
   if (layers.length === 0) return null
+
+  // Dynamically import to avoid circular dependencies
+  const { applyLayerEffects } = require('@/core/layerEffects')
 
   // Create temporary canvases
   const compositeCanvas = document.createElement('canvas')
@@ -349,9 +353,15 @@ export function compositeFrameLayers(
   for (const layer of layers) {
     if (!layer.visible || !layer.data) continue
 
+    // Apply layer effects if any
+    let layerData = layer.data
+    if (layer.effects && layer.effects.length > 0) {
+      layerData = applyLayerEffects(layer.data, layer.effects)
+    }
+
     // Draw layer data to temp canvas
     layerCtx.clearRect(0, 0, width, height)
-    layerCtx.putImageData(layer.data, 0, 0)
+    layerCtx.putImageData(layerData, 0, 0)
 
     // Composite onto main canvas
     compositeCtx.globalAlpha = layer.opacity / 100

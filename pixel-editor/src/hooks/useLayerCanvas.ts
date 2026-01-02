@@ -104,10 +104,46 @@ export function useLayerCanvas() {
     return manager.getLayer(layer.id)
   }, [layers, currentLayerIndex])
 
-  // Composite all layers
+  // Composite all layers with effects
   const composite = useCallback((): HTMLCanvasElement | null => {
-    return managerRef.current?.composite() || null
-  }, [])
+    const manager = managerRef.current
+    if (!manager) return null
+
+    // Get the base composite canvas
+    const compositeCanvas = manager.composite()
+
+    // Check if any layer has effects
+    const hasEffects = layers.some(l => l.effects && l.effects.length > 0)
+
+    if (!hasEffects) {
+      return compositeCanvas
+    }
+
+    // Re-composite with effects applied
+    const { compositeFrameLayers } = require('@/core/layerCanvas')
+
+    const layerDataList = layers.map(layer => {
+      return {
+        visible: layer.visible,
+        opacity: layer.opacity,
+        blendMode: layer.blendMode,
+        data: manager.getLayerImageData(layer.id),
+        effects: layer.effects,
+      }
+    })
+
+    const effectsResult = compositeFrameLayers(width, height, layerDataList)
+    if (!effectsResult) return compositeCanvas
+
+    // Draw the effects result onto the composite canvas
+    const ctx = compositeCanvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, width, height)
+      ctx.putImageData(effectsResult, 0, 0)
+    }
+
+    return compositeCanvas
+  }, [layers, width, height])
 
   // Save current layer data to store
   const saveCurrentLayerData = useCallback(() => {
