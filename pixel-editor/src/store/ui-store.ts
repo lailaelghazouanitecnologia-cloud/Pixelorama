@@ -32,6 +32,7 @@ export type DialogType =
   | 'selectionModify'
   | 'strokeSelection'
   | 'layerProperties'
+  | 'layerEffects'
   | 'about'
   | 'startup'
   | 'confirm'

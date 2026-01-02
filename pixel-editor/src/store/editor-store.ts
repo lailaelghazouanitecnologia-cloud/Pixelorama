@@ -1066,7 +1066,7 @@ export const useEditorStore = create<EditorState>()(
         createStroke,
         createColorOverlay,
         createGradientOverlay,
-      } = require('./layerEffects')
+      } = require('@/core/layerEffects')
 
       let newEffect
       switch (effectType) {

@@ -547,6 +547,9 @@ export function TopMenu() {
             <MenubarItem onClick={() => openDialog('layerProperties')}>
               Layer Properties...
             </MenubarItem>
+            <MenubarItem onClick={() => openDialog('layerEffects')}>
+              Layer Effects...
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 

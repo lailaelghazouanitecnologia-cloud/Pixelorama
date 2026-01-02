@@ -32,6 +32,7 @@ const dialogRegistry: Partial<Record<DialogType, React.LazyExoticComponent<React
   selectionModify: lazy(() => import('./SelectionModifyDialog').then(m => ({ default: m.SelectionModifyDialogWrapper }))),
   strokeSelection: lazy(() => import('./StrokeSelectionDialog').then(m => ({ default: m.StrokeSelectionDialog }))),
   layerProperties: lazy(() => import('./LayerPropertiesDialog').then(m => ({ default: m.LayerPropertiesDialog }))),
+  layerEffects: lazy(() => import('./LayerEffectsDialog').then(m => ({ default: m.LayerEffectsDialog }))),
   flipRotate: lazy(() => import('./FlipRotateDialog').then(m => ({ default: m.FlipRotateDialog }))),
   gradient: lazy(() => import('./GradientDialog').then(m => ({ default: m.GradientDialog }))),
   startup: lazy(() => import('./StartupDialog').then(m => ({ default: m.StartupDialog }))),
