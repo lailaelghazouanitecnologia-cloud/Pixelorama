@@ -58,7 +58,7 @@ export function Timeline() {
       <div
         className="flex flex-col"
         style={{
-          height: '100px',
+          height: '140px',
           backgroundColor: 'var(--pix-bg)',
           borderTop: '1px solid var(--pix-border)'
         }}

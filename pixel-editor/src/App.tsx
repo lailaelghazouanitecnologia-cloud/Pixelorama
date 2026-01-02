@@ -13,12 +13,14 @@ import { useUIStore } from "@/store/ui-store"
 import { useToolsStore, TOOL_SHORTCUTS } from "@/store/tools-store"
 import { downloadProject, openProjectDialog } from "@/core/project"
 import { useEffect, useState } from "react"
+import { ChevronUp, ChevronDown } from "lucide-react"
 
 function App() {
   const { setPrimaryColor, setSecondaryColor, togglePlay } = useEditorStore()
   const { openDialog } = useUIStore()
   const { setTool } = useToolsStore()
   const [showStartup, setShowStartup] = useState(true)
+  const [showTimeline, setShowTimeline] = useState(true)
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -106,35 +108,60 @@ function App() {
       {/* Startup Dialog */}
       <StartupDialog open={showStartup} onOpenChange={setShowStartup} />
 
-      {/* Top Menu Bar */}
+      {/* Top Menu Bar - reduced height */}
       <TopMenu />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Toolbar */}
+        {/* Left Toolbar - unchanged */}
         <Toolbar />
 
         {/* Center Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Tool Options */}
+          {/* Tool Options - reduced height */}
           <ToolOptions />
 
           {/* Canvas Area */}
           <Canvas />
 
-          {/* Timeline */}
-          <Timeline />
+          {/* Timeline Toggle Button */}
+          <button
+            onClick={() => setShowTimeline(!showTimeline)}
+            className="w-full h-5 flex items-center justify-center gap-1 hover:bg-pix-bg-secondary transition-colors"
+            style={{
+              backgroundColor: 'var(--pix-bg)',
+              borderTop: '1px solid var(--pix-border)',
+              borderBottom: showTimeline ? 'none' : '1px solid var(--pix-border)',
+            }}
+          >
+            {showTimeline ? (
+              <ChevronDown className="w-3 h-3 text-pix-text-muted" />
+            ) : (
+              <ChevronUp className="w-3 h-3 text-pix-text-muted" />
+            )}
+            <span className="text-pix-xs text-pix-text-muted">
+              {showTimeline ? 'Hide Timeline' : 'Show Timeline'}
+            </span>
+            {showTimeline ? (
+              <ChevronDown className="w-3 h-3 text-pix-text-muted" />
+            ) : (
+              <ChevronUp className="w-3 h-3 text-pix-text-muted" />
+            )}
+          </button>
+
+          {/* Timeline - taller and collapsible */}
+          {showTimeline && <Timeline />}
         </div>
 
-        {/* Right Panels - Compact */}
-        <div className="w-56 flex flex-col border-l border-border">
-          {/* Colors */}
-          <div className="flex-1 min-h-0">
+        {/* Right Panels - reduced width 12% (w-56 -> w-48) but taller layers */}
+        <div className="w-48 flex flex-col border-l border-border">
+          {/* Colors - smaller */}
+          <div className="flex-1 min-h-0" style={{ maxHeight: '45%' }}>
             <ColorPanel />
           </div>
 
-          {/* Layers */}
-          <div className="h-48 border-t border-border">
+          {/* Layers - taller */}
+          <div className="flex-1 border-t border-border" style={{ minHeight: '55%' }}>
             <LayersPanel />
           </div>
         </div>

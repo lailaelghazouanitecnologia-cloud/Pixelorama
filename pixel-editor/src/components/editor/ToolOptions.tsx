@@ -137,7 +137,7 @@ export function ToolOptions() {
   return (
     <TooltipProvider delayDuration={300}>
       <div
-        className="h-7 flex items-center px-2 gap-3"
+        className="h-6 flex items-center px-2 gap-2"
         style={{
           backgroundColor: 'var(--pix-bg-secondary)',
           borderBottom: '1px solid var(--pix-border)'
