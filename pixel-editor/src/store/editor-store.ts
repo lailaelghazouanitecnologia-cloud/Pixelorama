@@ -35,6 +35,7 @@ export interface Layer {
   opacity: number
   blendMode: BlendMode
   data: ImageData | null
+  imageData?: string  // Base64 encoded PNG for serialization/display
   // Group layer support
   type: LayerType
   children?: Layer[]  // Only for group layers
@@ -42,10 +43,11 @@ export interface Layer {
   parentId?: string   // ID of parent group (null = root level)
   // Clipping mask support
   clipped?: boolean   // If true, this layer clips to the layer below
+  clippingMask?: boolean  // Alias for clipped (for compatibility)
   // Cel linking support - links to source cel in another frame
   linkedCelId?: string  // ID of the source layer this cel is linked to
   // Layer effects (non-destructive)
-  effects?: import('./layerEffects').AnyLayerEffect[]
+  effects?: import('@/core/layerEffects').AnyLayerEffect[]
   // TileMap layer support
   tilemapData?: import('@/core/tilemap').TileMapData
   selectedTilesetId?: string
@@ -148,6 +150,7 @@ export interface EditorState {
 
   // Selection
   selection: Selection
+  hasSelection: boolean  // Computed from selection.active
 
   // History
   history: History
@@ -248,9 +251,9 @@ export interface EditorState {
   setClipping: (index: number, clipped: boolean) => void
 
   // Layer Effects
-  addLayerEffect: (layerIndex: number, effectType: import('./layerEffects').EffectType) => void
+  addLayerEffect: (layerIndex: number, effectType: import('@/core/layerEffects').EffectType) => void
   removeLayerEffect: (layerIndex: number, effectId: string) => void
-  updateLayerEffect: (layerIndex: number, effectId: string, updates: Partial<import('./layerEffects').AnyLayerEffect>) => void
+  updateLayerEffect: (layerIndex: number, effectId: string, updates: Partial<import('@/core/layerEffects').AnyLayerEffect>) => void
   toggleLayerEffect: (layerIndex: number, effectId: string) => void
   reorderLayerEffects: (layerIndex: number, fromIndex: number, toIndex: number) => void
 
@@ -472,6 +475,7 @@ export const useEditorStore = create<EditorState>()(
 
     // Selection
     selection: createDefaultSelection(),
+    hasSelection: false,
 
     // Clipboard
     clipboard: null,
@@ -2347,6 +2351,14 @@ getHistory().subscribe((state) => {
     canRedo: state.canRedo,
   })
 })
+
+// Subscribe to selection changes to update hasSelection
+useEditorStore.subscribe(
+  (state) => state.selection.active,
+  (active) => {
+    useEditorStore.setState({ hasSelection: active })
+  }
+)
 
 // Keyboard shortcuts helper
 export const SHORTCUTS: Record<string, ToolName | (() => void)> = {
