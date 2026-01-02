@@ -3,7 +3,7 @@
  * Based on Pixelorama's export system
  */
 
-export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'gif' | 'apng'
+export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'gif' | 'apng' | 'mp4' | 'webm'
 
 export interface ExportOptions {
   format: ExportFormat
@@ -398,4 +398,94 @@ export async function exportAnimationAsApng(
   document.body.removeChild(link)
 
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Export frames as video (MP4/WebM)
+ */
+export {
+  createVideo,
+  exportAnimationAsVideo,
+  isVideoEncodingSupported,
+  quickVideoExport,
+  type VideoFormat,
+  type VideoExportOptions,
+} from './videoEncoder'
+
+import { exportAnimationAsVideo, isVideoEncodingSupported } from './videoEncoder'
+
+/**
+ * Export animation as MP4 file download
+ */
+export async function exportAnimationAsMp4(
+  frames: HTMLCanvasElement[],
+  filename: string,
+  fps: number = 12,
+  scale: number = 1,
+  onProgress?: (progress: number) => void
+): Promise<void> {
+  const support = isVideoEncodingSupported()
+  if (!support.mp4 && !support.webm) {
+    throw new Error('Video encoding not supported in this browser')
+  }
+
+  // Scale frames if needed
+  let exportFrames = frames
+  if (scale !== 1 && frames.length > 0) {
+    exportFrames = frames.map(frame => {
+      const scaled = document.createElement('canvas')
+      scaled.width = frame.width * scale
+      scaled.height = frame.height * scale
+      const ctx = scaled.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(frame, 0, 0, scaled.width, scaled.height)
+      return scaled
+    })
+  }
+
+  await exportAnimationAsVideo(exportFrames, filename, {
+    format: support.mp4 ? 'mp4' : 'webm',
+    fps,
+    quality: 0.9,
+    scale: 1,
+    loop: 0,
+  }, onProgress)
+}
+
+/**
+ * Export animation as WebM file download
+ */
+export async function exportAnimationAsWebm(
+  frames: HTMLCanvasElement[],
+  filename: string,
+  fps: number = 12,
+  scale: number = 1,
+  onProgress?: (progress: number) => void
+): Promise<void> {
+  const support = isVideoEncodingSupported()
+  if (!support.webm) {
+    throw new Error('WebM encoding not supported in this browser')
+  }
+
+  // Scale frames if needed
+  let exportFrames = frames
+  if (scale !== 1 && frames.length > 0) {
+    exportFrames = frames.map(frame => {
+      const scaled = document.createElement('canvas')
+      scaled.width = frame.width * scale
+      scaled.height = frame.height * scale
+      const ctx = scaled.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(frame, 0, 0, scaled.width, scaled.height)
+      return scaled
+    })
+  }
+
+  await exportAnimationAsVideo(exportFrames, filename, {
+    format: 'webm',
+    fps,
+    quality: 0.9,
+    scale: 1,
+    loop: 0,
+  }, onProgress)
 }

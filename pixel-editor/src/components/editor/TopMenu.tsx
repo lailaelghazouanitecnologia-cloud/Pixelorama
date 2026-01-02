@@ -21,7 +21,7 @@ import { useEditorStore } from "@/store/editor-store"
 import { useUIStore } from "@/store/ui-store"
 import { useToolsStore } from "@/store/tools-store"
 import { getHistory } from "@/core/history"
-import { downloadCanvas, exportAnimationAsGif, exportAnimationAsApng } from "@/core/export"
+import { downloadCanvas, exportAnimationAsGif, exportAnimationAsApng, exportAnimationAsWebm, isVideoEncodingSupported } from "@/core/export"
 import { compositeFrameLayers } from "@/core/layerCanvas"
 import { downloadProject, openProjectDialog } from "@/core/project"
 import { loadReferenceImage } from "./ReferenceImage"
@@ -196,6 +196,42 @@ export function TopMenu() {
     }
   }, [frames, fps, width, height, projectName])
 
+  const handleExportWebM = useCallback(async () => {
+    const support = isVideoEncodingSupported()
+    if (!support.webm) {
+      alert('Video encoding is not supported in this browser')
+      return
+    }
+
+    if (frames.length === 0) {
+      // Export single frame as video
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement
+      if (canvas) {
+        const frameCanvases = [canvas]
+        await exportAnimationAsWebm(frameCanvases, projectName || 'untitled', fps || 12)
+      }
+      return
+    }
+
+    // Composite each frame's layers into a single canvas
+    const frameCanvases: HTMLCanvasElement[] = []
+    for (const frame of frames) {
+      const imageData = compositeFrameLayers(width, height, frame.layers)
+      if (imageData) {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.putImageData(imageData, 0, 0)
+        frameCanvases.push(canvas)
+      }
+    }
+
+    if (frameCanvases.length > 0) {
+      await exportAnimationAsWebm(frameCanvases, projectName || 'untitled', fps || 12)
+    }
+  }, [frames, fps, width, height, projectName])
+
   // Edit operations
   const handleUndo = useCallback(() => {
     history.undo()
@@ -241,6 +277,7 @@ export function TopMenu() {
                 <MenubarItem onClick={() => openDialog('spritesheet')}>Spritesheet...</MenubarItem>
                 <MenubarItem onClick={handleExportGIF}>GIF Animation</MenubarItem>
                 <MenubarItem onClick={handleExportAPNG}>APNG Animation</MenubarItem>
+                <MenubarItem onClick={handleExportWebM}>WebM Video</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
