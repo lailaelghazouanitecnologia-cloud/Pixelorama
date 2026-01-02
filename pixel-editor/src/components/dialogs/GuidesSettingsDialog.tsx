@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useEditorStore } from "@/store/editor-store"
-import { Trash2, Plus, Eye, EyeOff } from "lucide-react"
+import { Trash2, Plus } from "lucide-react"
 
 interface GuidesSettingsDialogProps {
   open: boolean

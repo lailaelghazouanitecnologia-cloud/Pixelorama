@@ -2,7 +2,7 @@ import { useEditorStore } from "@/store/editor-store"
 import { useUIStore } from "@/store/ui-store"
 import { useToolsStore, TOOL_REGISTRY } from "@/store/tools-store"
 import { Separator } from "@/components/ui/separator"
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import { ZoomIn, ZoomOut } from "lucide-react"
 
 export function StatusBar() {
   const {

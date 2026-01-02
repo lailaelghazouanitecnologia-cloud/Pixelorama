@@ -32,8 +32,9 @@ export function AudioTimeline({ className = "", height = 120 }: AudioTimelinePro
   const addAudioLayer = useAudioStore((s) => s.addAudioLayer)
   const removeAudioLayer = useAudioStore((s) => s.removeAudioLayer)
   const setCurrentAudioLayer = useAudioStore((s) => s.setCurrentAudioLayer)
-  const toggleLayerMute = useAudioStore((s) => s.toggleLayerMute)
-  const toggleLayerSolo = useAudioStore((s) => s.toggleLayerSolo)
+  // Note: toggleLayerMute and toggleLayerSolo are available but UI not implemented yet
+  const _toggleLayerMute = useAudioStore((s) => s.toggleLayerMute)
+  const _toggleLayerSolo = useAudioStore((s) => s.toggleLayerSolo)
   const selectRegion = useAudioStore((s) => s.selectRegion)
   const moveRegionTo = useAudioStore((s) => s.moveRegionTo)
   const removeRegion = useAudioStore((s) => s.removeRegion)

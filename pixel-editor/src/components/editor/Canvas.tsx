@@ -8,7 +8,7 @@ import { useRef, useEffect, useState, useCallback } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
 import { useUIStore } from "@/store/ui-store"
-import { getHistory, captureCanvasState } from "@/core/history"
+import { captureCanvasState } from "@/core/history"
 import { ToolManager } from "@/tools/ToolManager"
 import { bresenhamLine } from "@/lib/drawing"
 import { useSelection } from "@/hooks/useSelection"
@@ -109,7 +109,7 @@ export function Canvas() {
   } = useEditorStore()
 
   // Tool state from tools-store
-  const { currentTool, brushSize, filled } = useToolsStore()
+  const { currentTool, filled } = useToolsStore()
 
   // UI state for cursor tracking
   const { setCursorPosition, setCursorInCanvas } = useUIStore()

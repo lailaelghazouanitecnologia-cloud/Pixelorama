@@ -5,7 +5,7 @@
 
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
-import { ArrowLeftRight, Plus, Trash2, Download, Upload, Pipette, ChevronDown } from "lucide-react"
+import { ArrowLeftRight, Plus, Trash2, Download, Upload, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useCallback, useMemo, useRef } from "react"
 import { downloadPalette, openPaletteDialog, PRESET_PALETTES } from "@/core/palette"

@@ -67,7 +67,6 @@ export function TopMenu() {
     layers,
     addFrame,
     togglePlay,
-    newProject,
     selectAll,
     clearSelection,
     selection,

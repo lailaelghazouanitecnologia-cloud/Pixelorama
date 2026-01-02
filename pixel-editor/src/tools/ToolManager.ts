@@ -239,6 +239,14 @@ class ToolManagerClass {
       case 'zoom':
         // Handled by Canvas directly
         break
+      default:
+        // Delegate to tool instance for tools not handled above
+        // (gradient, text, smudge, cloneStamp, dodgeBurn, selection tools, etc.)
+        if (this.currentTool) {
+          const event = this.createCanvasEvent(pos, options)
+          this.currentTool.drawStart(pos, event, ctx)
+        }
+        break
     }
   }
 
@@ -274,6 +282,13 @@ class ToolManagerClass {
         // Move preview - redraw canvas content with offset
         this.moveLayerPreview(ctx, pos)
         break
+      default:
+        // Delegate to tool instance
+        if (this.currentTool) {
+          const event = this.createCanvasEvent(pos, options)
+          this.currentTool.drawMove(pos, event, ctx)
+        }
+        break
     }
   }
 
@@ -283,8 +298,28 @@ class ToolManagerClass {
     options: DrawingOptions,
     ctx: DrawingContext
   ): void {
-    // Most tools don't need special end handling
-    // Shape tools finalize their shapes here
+    // Delegate to tool instance for tools that need end handling
+    if (this.currentTool) {
+      const event = this.createCanvasEvent(pos, options)
+      this.currentTool.drawEnd(pos, event, ctx)
+    }
+  }
+
+  /**
+   * Create a minimal CanvasMouseEvent for tool delegation.
+   */
+  private createCanvasEvent(pos: Point, _options: DrawingOptions): CanvasMouseEvent {
+    return {
+      canvasX: pos.x,
+      canvasY: pos.y,
+      clientX: pos.x,
+      clientY: pos.y,
+      button: this.state.activeButton === 'left' ? 0 : 2,
+      pressure: 1,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+    }
   }
 
   // ============================================================================
@@ -644,7 +679,13 @@ class ToolManagerClass {
   }
 
   private shouldSaveHistory(toolName: string): boolean {
-    return ['pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse', 'shading', 'spray', 'move'].includes(toolName)
+    // All tools that modify the canvas should save history
+    const historyTools = [
+      'pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse',
+      'shading', 'spray', 'move', 'gradient', 'text', 'smudge', 'cloneStamp',
+      'dodgeBurn', 'isometricBox', 'transform', 'crop'
+    ]
+    return historyTools.includes(toolName)
   }
 
   private hexToRgb(hex: string): { r: number; g: number; b: number } | null {

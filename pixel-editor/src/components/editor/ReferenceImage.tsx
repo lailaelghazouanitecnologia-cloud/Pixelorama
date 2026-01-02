@@ -5,7 +5,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react"
 import { useEditorStore } from "@/store/editor-store"
-import { X, Move, Lock, Unlock, Eye, EyeOff } from "lucide-react"
+import { X, Lock, Unlock, Eye, EyeOff } from "lucide-react"
 
 interface ReferenceImageState {
   src: string
@@ -19,7 +19,7 @@ interface ReferenceImageState {
 }
 
 export function ReferenceImage() {
-  const { width: canvasWidth, height: canvasHeight, zoom, panX, panY } = useEditorStore()
+  const { width: canvasWidth, height: canvasHeight, zoom } = useEditorStore()
 
   const [refImage, setRefImage] = useState<ReferenceImageState | null>(null)
   const [isDragging, setIsDragging] = useState(false)

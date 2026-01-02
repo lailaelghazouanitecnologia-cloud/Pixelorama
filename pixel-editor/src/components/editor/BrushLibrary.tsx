@@ -16,7 +16,7 @@ import {
   generateSoftCircleBrush,
 } from "@/core/brushes"
 import { cn } from "@/lib/utils"
-import { Plus, Upload, Trash2, Square, Circle, CircleDot, Diamond, Paintbrush } from "lucide-react"
+import { Upload, Trash2, Square, Circle, CircleDot, Diamond, Paintbrush } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 // Extended built-in brushes for the library
@@ -150,7 +150,6 @@ interface BrushLibraryProps {
 export function BrushLibrary({ collapsed = false }: BrushLibraryProps) {
   const { currentBrushId, setCurrentBrushId, setCurrentBrushType } = useToolsStore()
   const [customBrushes, setCustomBrushes] = useState<Brush[]>([])
-  const [showImport, setShowImport] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleBrushSelect = useCallback((brush: Brush) => {
