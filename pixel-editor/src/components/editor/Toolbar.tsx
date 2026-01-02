@@ -19,7 +19,6 @@ import {
   Wand2,
   PenTool,
   Palette,
-  Blend,
   Stamp,
   Sun,
   Droplets,
@@ -97,13 +96,6 @@ export function Toolbar() {
           label="Bucket Fill"
           shortcut="G"
         />
-        <ToolButton
-          tool="gradient"
-          icon={<Blend className="w-4 h-4" />}
-          label="Gradient"
-          shortcut="F"
-        />
-
         <ToolSeparator />
 
         {/* Advanced Drawing Tools */}

@@ -490,6 +490,9 @@ export function TopMenu() {
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator className="separator" />
+            <MenubarItem onClick={() => openDialog('gradient')}>
+              Gradient...
+            </MenubarItem>
             <MenubarItem onClick={() => openDialog('effects')}>
               Effects... <MenubarShortcut>Ctrl+U</MenubarShortcut>
             </MenubarItem>

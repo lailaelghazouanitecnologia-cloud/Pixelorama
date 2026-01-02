@@ -20,6 +20,7 @@ export type ToolName =
   | 'colorPicker' | 'move' | 'pan' | 'zoom' | 'crop' | 'transform' | 'tileMap'  // Utility tools
 
 export type ShadingMode = 'lighten' | 'darken'
+export type ShadingType = 'simple' | 'hue_shifting' | 'color_replace'
 export type SelectionMode = 'replace' | 'add' | 'subtract' | 'intersect'
 
 // Tool configuration interface
@@ -99,8 +100,13 @@ export interface ToolsState {
   bucketTolerance: number
 
   // Shading settings
+  shadingType: ShadingType
   shadingMode: ShadingMode
   shadingAmount: number
+  shadingHueAmount: number
+  shadingSatAmount: number
+  shadingValueAmount: number
+  shadingColorArray: string[]
 
   // Mirror settings
   mirrorH: boolean
@@ -145,8 +151,13 @@ export interface ToolsState {
   setSpacing: (x: number, y: number) => void
   setFilled: (filled: boolean) => void
   setBucketTolerance: (tolerance: number) => void
+  setShadingType: (type: ShadingType) => void
   setShadingMode: (mode: ShadingMode) => void
   setShadingAmount: (amount: number) => void
+  setShadingHueAmount: (amount: number) => void
+  setShadingSatAmount: (amount: number) => void
+  setShadingValueAmount: (amount: number) => void
+  setShadingColorArray: (colors: string[]) => void
   setMirrorH: (enabled: boolean) => void
   setMirrorV: (enabled: boolean) => void
   setMirrorDiagonalXY: (enabled: boolean) => void
@@ -198,8 +209,13 @@ export const useToolsStore = create<ToolsState>()(
     bucketTolerance: 0,
 
     // Shading settings
+    shadingType: 'simple' as ShadingType,
     shadingMode: 'lighten',
     shadingAmount: 10,
+    shadingHueAmount: 10,
+    shadingSatAmount: 10,
+    shadingValueAmount: 10,
+    shadingColorArray: [],
 
     // Mirror settings
     mirrorH: false,
@@ -267,11 +283,27 @@ export const useToolsStore = create<ToolsState>()(
       bucketTolerance: Math.max(0, Math.min(255, tolerance))
     }),
 
+    setShadingType: (type) => set({ shadingType: type }),
+
     setShadingMode: (mode) => set({ shadingMode: mode }),
 
     setShadingAmount: (amount) => set({
       shadingAmount: Math.max(0, Math.min(100, amount))
     }),
+
+    setShadingHueAmount: (amount) => set({
+      shadingHueAmount: Math.max(0, Math.min(100, amount))
+    }),
+
+    setShadingSatAmount: (amount) => set({
+      shadingSatAmount: Math.max(0, Math.min(100, amount))
+    }),
+
+    setShadingValueAmount: (amount) => set({
+      shadingValueAmount: Math.max(0, Math.min(100, amount))
+    }),
+
+    setShadingColorArray: (colors) => set({ shadingColorArray: colors }),
 
     setMirrorH: (enabled) => set({ mirrorH: enabled }),
     setMirrorV: (enabled) => set({ mirrorV: enabled }),

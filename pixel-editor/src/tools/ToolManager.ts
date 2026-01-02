@@ -25,6 +25,7 @@ export interface ToolManagerState {
   isDrawing: boolean
   lastPosition: Point | null
   startPosition: Point | null
+  stabilizerCenter: Point | null
 }
 
 export interface DrawingOptions {
@@ -38,8 +39,13 @@ export interface DrawingOptions {
   // Tool-specific
   filled?: boolean
   tolerance?: number
+  shadingType?: 'simple' | 'hue_shifting' | 'color_replace'
   shadingMode?: 'lighten' | 'darken'
   shadingAmount?: number
+  shadingHueAmount?: number
+  shadingSatAmount?: number
+  shadingValueAmount?: number
+  shadingColorArray?: string[]
   sprayDensity?: number
   sprayRadius?: number
 }
@@ -54,6 +60,7 @@ class ToolManagerClass {
     isDrawing: false,
     lastPosition: null,
     startPosition: null,
+    stabilizerCenter: null,
   }
 
   private currentTool: BaseTool | null = null
@@ -118,6 +125,7 @@ class ToolManagerClass {
     this.state.isDrawing = true
     this.state.startPosition = pos
     this.state.lastPosition = pos
+    this.state.stabilizerCenter = pos  // Initialize stabilizer center
     this.drawingCtx = ctx
     this.sprayProcessed.clear()
 
@@ -149,11 +157,14 @@ class ToolManagerClass {
     const options = this.getDrawingOptions(button)
     const lastPos = this.state.lastPosition
 
-    // Execute tool-specific drawing
-    this.executeDrawMove(toolName, pos, lastPos, options, ctx)
+    // Apply stabilizer if enabled
+    const stabilizedPos = this.getStabilizedPosition(pos, toolsStore)
 
-    // Update last position
-    this.state.lastPosition = pos
+    // Execute tool-specific drawing
+    this.executeDrawMove(toolName, stabilizedPos, lastPos, options, ctx)
+
+    // Update last position with stabilized position
+    this.state.lastPosition = stabilizedPos
 
     // Update display
     this.onUpdateDisplay?.()
@@ -194,6 +205,7 @@ class ToolManagerClass {
     this.state.activeButton = null
     this.state.lastPosition = null
     this.state.startPosition = null
+    this.state.stabilizerCenter = null
     this.undoImageData = null
   }
 
@@ -671,8 +683,13 @@ class ToolManagerClass {
       spacing: toolsStore.spacing,
       filled: toolsStore.filled,
       tolerance: toolsStore.bucketTolerance,
+      shadingType: toolsStore.shadingType,
       shadingMode: toolsStore.shadingMode,
       shadingAmount: toolsStore.shadingAmount,
+      shadingHueAmount: toolsStore.shadingHueAmount,
+      shadingSatAmount: toolsStore.shadingSatAmount,
+      shadingValueAmount: toolsStore.shadingValueAmount,
+      shadingColorArray: toolsStore.shadingColorArray,
       sprayDensity: toolsStore.sprayDensity,
       sprayRadius: toolsStore.sprayRadius,
     }
@@ -680,9 +697,10 @@ class ToolManagerClass {
 
   private shouldSaveHistory(toolName: string): boolean {
     // All tools that modify the canvas should save history
+    // Note: gradient is now a dialog-based effect, not a tool
     const historyTools = [
       'pencil', 'eraser', 'bucket', 'line', 'curve', 'rectangle', 'ellipse',
-      'shading', 'spray', 'move', 'gradient', 'text', 'smudge', 'cloneStamp',
+      'shading', 'spray', 'move', 'text', 'smudge', 'cloneStamp',
       'dodgeBurn', 'isometricBox', 'transform', 'crop'
     ]
     return historyTools.includes(toolName)
@@ -695,6 +713,40 @@ class ToolManagerClass {
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16),
     } : null
+  }
+
+  /**
+   * Apply stabilizer smoothing to position.
+   * Based on Pixelorama's _get_stabilized_position in BaseTool.gd
+   */
+  private getStabilizedPosition(pos: Point, toolsStore: ReturnType<typeof useToolsStore.getState>): Point {
+    if (!toolsStore.stabilizerEnabled || !this.state.stabilizerCenter) {
+      return pos
+    }
+
+    const center = this.state.stabilizerCenter
+    const dx = pos.x - center.x
+    const dy = pos.y - center.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+
+    if (distance === 0) {
+      return pos
+    }
+
+    // Move center by a fraction of the distance based on stabilizer value
+    // Higher value = more smoothing (slower following)
+    const moveDistance = distance / toolsStore.stabilizerValue
+    const angle = Math.atan2(dy, dx)
+
+    const newCenter: Point = {
+      x: Math.round(center.x + Math.cos(angle) * moveDistance),
+      y: Math.round(center.y + Math.sin(angle) * moveDistance),
+    }
+
+    // Update stabilizer center
+    this.state.stabilizerCenter = newCenter
+
+    return newCenter
   }
 
   // ============================================================================

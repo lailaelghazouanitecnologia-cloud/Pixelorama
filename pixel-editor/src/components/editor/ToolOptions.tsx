@@ -6,7 +6,7 @@
 import { useState } from "react"
 import { useEditorStore } from "@/store/editor-store"
 import { useToolsStore } from "@/store/tools-store"
-import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon } from "lucide-react"
+import { Undo2, Redo2, FlipHorizontal, FlipVertical, Grid3X3, Lock, Unlock, MousePointer2, Replace, Space, Columns, Rows, Sun, Moon, Anchor } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { getHistory } from "@/core/history"
 import { DITHER_PATTERN_OPTIONS, type DitherPattern } from "@/core/dithering"
@@ -40,10 +40,18 @@ export function ToolOptions() {
     setFilled,
     bucketTolerance,
     setBucketTolerance,
+    shadingType,
+    setShadingType,
     shadingMode,
     setShadingMode,
     shadingAmount,
     setShadingAmount,
+    shadingHueAmount,
+    setShadingHueAmount,
+    shadingSatAmount,
+    setShadingSatAmount,
+    shadingValueAmount,
+    setShadingValueAmount,
     mirrorH,
     setMirrorH,
     mirrorV,
@@ -54,6 +62,10 @@ export function ToolOptions() {
     setSprayRadius,
     ditherPattern,
     setDitherPattern,
+    stabilizerEnabled,
+    setStabilizerEnabled,
+    stabilizerValue,
+    setStabilizerValue,
     currentTool,
   } = useToolsStore()
 
@@ -325,7 +337,7 @@ export function ToolOptions() {
           </div>
         )}
 
-        {/* Pixel Perfect */}
+        {/* Pixel Perfect & Stabilizer */}
         {showBrushOptions && !showSmudgeOptions && !showCloneStampOptions && !showDodgeBurnOptions && (
           <>
             <div className="separator-v h-4" />
@@ -342,6 +354,34 @@ export function ToolOptions() {
                 <p>Pixel Perfect Mode</p>
               </TooltipContent>
             </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`icon-btn ${stabilizerEnabled ? 'active' : ''}`}
+                  onClick={() => setStabilizerEnabled(!stabilizerEnabled)}
+                >
+                  <Anchor className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="tooltip">
+                <p>Stabilizer (smooth strokes)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {stabilizerEnabled && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="range"
+                  className="slider w-16"
+                  value={stabilizerValue}
+                  onChange={(e) => setStabilizerValue(parseInt(e.target.value))}
+                  min={4}
+                  max={64}
+                />
+                <span className="text-pix-xs w-5 text-right">{stabilizerValue}</span>
+              </div>
+            )}
           </>
         )}
 
@@ -474,6 +514,17 @@ export function ToolOptions() {
         {/* Shading Options */}
         {showShadingOptions && (
           <div className="flex items-center gap-2">
+            <span className="text-pix-xs text-pix-text-muted">Type:</span>
+            <select
+              className="input py-0 text-pix-xs"
+              value={shadingType}
+              onChange={(e) => setShadingType(e.target.value as 'simple' | 'hue_shifting' | 'color_replace')}
+            >
+              <option value="simple">Simple</option>
+              <option value="hue_shifting">Hue Shifting</option>
+              <option value="color_replace">Color Replace</option>
+            </select>
+            <div className="separator-v h-4" />
             <span className="text-pix-xs text-pix-text-muted">Mode:</span>
             <select
               className="input py-0 text-pix-xs"
@@ -483,17 +534,58 @@ export function ToolOptions() {
               <option value="lighten">Lighten</option>
               <option value="darken">Darken</option>
             </select>
-            <div className="separator-v h-4" />
-            <span className="text-pix-xs text-pix-text-muted">Amount:</span>
-            <input
-              type="range"
-              className="slider w-20"
-              value={shadingAmount}
-              onChange={(e) => setShadingAmount(parseInt(e.target.value))}
-              min={1}
-              max={100}
-            />
-            <span className="text-pix-xs w-8 text-right">{shadingAmount}%</span>
+            {shadingType === 'simple' && (
+              <>
+                <div className="separator-v h-4" />
+                <span className="text-pix-xs text-pix-text-muted">Amount:</span>
+                <input
+                  type="range"
+                  className="slider w-16"
+                  value={shadingAmount}
+                  onChange={(e) => setShadingAmount(parseInt(e.target.value))}
+                  min={1}
+                  max={100}
+                />
+                <span className="text-pix-xs w-6 text-right">{shadingAmount}%</span>
+              </>
+            )}
+            {shadingType === 'hue_shifting' && (
+              <>
+                <div className="separator-v h-4" />
+                <span className="text-pix-xs text-pix-text-muted">H:</span>
+                <input
+                  type="range"
+                  className="slider w-12"
+                  value={shadingHueAmount}
+                  onChange={(e) => setShadingHueAmount(parseInt(e.target.value))}
+                  min={0}
+                  max={100}
+                />
+                <span className="text-pix-xs text-pix-text-muted">S:</span>
+                <input
+                  type="range"
+                  className="slider w-12"
+                  value={shadingSatAmount}
+                  onChange={(e) => setShadingSatAmount(parseInt(e.target.value))}
+                  min={0}
+                  max={100}
+                />
+                <span className="text-pix-xs text-pix-text-muted">V:</span>
+                <input
+                  type="range"
+                  className="slider w-12"
+                  value={shadingValueAmount}
+                  onChange={(e) => setShadingValueAmount(parseInt(e.target.value))}
+                  min={0}
+                  max={100}
+                />
+              </>
+            )}
+            {shadingType === 'color_replace' && (
+              <span className="text-pix-xs text-pix-text-muted ml-2">
+                Select colors from palette to define replacement sequence
+              </span>
+            )}
           </div>
         )}
 
