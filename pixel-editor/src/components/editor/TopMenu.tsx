@@ -72,6 +72,8 @@ export function TopMenu() {
     selection,
     cropToSelection,
     invertSelection,
+    fillSelection,
+    primaryColor,
     flipHorizontal,
     flipVertical,
     rotate90CW,
@@ -344,6 +346,19 @@ export function TopMenu() {
             <MenubarSeparator className="separator" />
             <MenubarItem onClick={() => setTool('colorSelect')}>
               Select Color...
+            </MenubarItem>
+            <MenubarSeparator className="separator" />
+            <MenubarItem
+              onClick={() => fillSelection(primaryColor)}
+              disabled={!selection.active}
+            >
+              Fill Selection
+            </MenubarItem>
+            <MenubarItem
+              onClick={() => openDialog('strokeSelection')}
+              disabled={!selection.active}
+            >
+              Stroke Selection...
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

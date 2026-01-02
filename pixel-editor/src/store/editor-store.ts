@@ -290,6 +290,8 @@ export interface EditorState {
   selectAll: () => void
   invertSelection: () => void
   modifySelection: (operation: 'expand' | 'shrink' | 'border' | 'feather' | 'grow' | 'smooth', value: number) => void
+  strokeSelection: (color: string, width: number, inside: boolean) => void
+  fillSelection: (color: string) => void
 
   // Clipboard
   clipboard: ImageData | null
@@ -1668,6 +1670,169 @@ export const useEditorStore = create<EditorState>()(
         },
       }
     }),
+
+    strokeSelection: (color, strokeWidth, inside) => {
+      const state = get()
+      const { selection, layers, currentLayerIndex, width, height } = state
+
+      if (!selection.active) return
+
+      const layer = layers[currentLayerIndex]
+      if (!layer?.data) return
+
+      // Parse color
+      const r = parseInt(color.slice(1, 3), 16)
+      const g = parseInt(color.slice(3, 5), 16)
+      const b = parseInt(color.slice(5, 7), 16)
+      const a = color.length > 7 ? parseInt(color.slice(7, 9), 16) : 255
+
+      // Create a copy of the layer data
+      const newData = new ImageData(
+        new Uint8ClampedArray(layer.data.data),
+        layer.data.width,
+        layer.data.height
+      )
+
+      // Get selection mask or create from bounds
+      const getMaskValue = (px: number, py: number): number => {
+        if (selection.mask) {
+          if (px >= 0 && px < width && py >= 0 && py < height) {
+            return selection.mask.data[(py * width + px) * 4 + 3]
+          }
+          return 0
+        } else {
+          const inBounds = px >= selection.x && px < selection.x + selection.width &&
+                          py >= selection.y && py < selection.y + selection.height
+          return inBounds ? 255 : 0
+        }
+      }
+
+      // Find edge pixels and stroke them
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const current = getMaskValue(x, y)
+
+          if (inside) {
+            // Inside stroke: draw on selected pixels that are near edge
+            if (current === 0) continue
+
+            // Check if near an unselected pixel
+            let nearEdge = false
+            for (let dy = -strokeWidth; dy <= strokeWidth && !nearEdge; dy++) {
+              for (let dx = -strokeWidth; dx <= strokeWidth && !nearEdge; dx++) {
+                if (dx === 0 && dy === 0) continue
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                if (dist <= strokeWidth) {
+                  const neighbor = getMaskValue(x + dx, y + dy)
+                  if (neighbor === 0) nearEdge = true
+                }
+              }
+            }
+
+            if (nearEdge) {
+              const i = (y * width + x) * 4
+              newData.data[i] = r
+              newData.data[i + 1] = g
+              newData.data[i + 2] = b
+              newData.data[i + 3] = a
+            }
+          } else {
+            // Outside stroke: draw on unselected pixels that are near edge
+            if (current > 0) continue
+
+            // Check if near a selected pixel
+            let nearEdge = false
+            for (let dy = -strokeWidth; dy <= strokeWidth && !nearEdge; dy++) {
+              for (let dx = -strokeWidth; dx <= strokeWidth && !nearEdge; dx++) {
+                if (dx === 0 && dy === 0) continue
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                if (dist <= strokeWidth) {
+                  const neighbor = getMaskValue(x + dx, y + dy)
+                  if (neighbor > 0) nearEdge = true
+                }
+              }
+            }
+
+            if (nearEdge) {
+              const i = (y * width + x) * 4
+              newData.data[i] = r
+              newData.data[i + 1] = g
+              newData.data[i + 2] = b
+              newData.data[i + 3] = a
+            }
+          }
+        }
+      }
+
+      // Update layer
+      set((state) => ({
+        layers: state.layers.map((l, i) =>
+          i === state.currentLayerIndex ? { ...l, data: newData } : l
+        ),
+      }))
+    },
+
+    fillSelection: (color) => {
+      const state = get()
+      const { selection, layers, currentLayerIndex, width, height } = state
+
+      if (!selection.active) return
+
+      const layer = layers[currentLayerIndex]
+      if (!layer?.data) return
+
+      // Parse color
+      const r = parseInt(color.slice(1, 3), 16)
+      const g = parseInt(color.slice(3, 5), 16)
+      const b = parseInt(color.slice(5, 7), 16)
+      const a = color.length > 7 ? parseInt(color.slice(7, 9), 16) : 255
+
+      // Create a copy of the layer data
+      const newData = new ImageData(
+        new Uint8ClampedArray(layer.data.data),
+        layer.data.width,
+        layer.data.height
+      )
+
+      // Fill selected area
+      if (selection.mask) {
+        // Use mask for complex selections
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const maskAlpha = selection.mask.data[(y * width + x) * 4 + 3]
+            if (maskAlpha > 0) {
+              const i = (y * width + x) * 4
+              // Blend based on mask alpha
+              const blendAlpha = maskAlpha / 255
+              newData.data[i] = Math.round(r * blendAlpha + newData.data[i] * (1 - blendAlpha))
+              newData.data[i + 1] = Math.round(g * blendAlpha + newData.data[i + 1] * (1 - blendAlpha))
+              newData.data[i + 2] = Math.round(b * blendAlpha + newData.data[i + 2] * (1 - blendAlpha))
+              newData.data[i + 3] = Math.max(newData.data[i + 3], Math.round(a * blendAlpha))
+            }
+          }
+        }
+      } else {
+        // Simple rectangular selection
+        for (let y = selection.y; y < selection.y + selection.height; y++) {
+          for (let x = selection.x; x < selection.x + selection.width; x++) {
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+              const i = (y * width + x) * 4
+              newData.data[i] = r
+              newData.data[i + 1] = g
+              newData.data[i + 2] = b
+              newData.data[i + 3] = a
+            }
+          }
+        }
+      }
+
+      // Update layer
+      set((state) => ({
+        layers: state.layers.map((l, i) =>
+          i === state.currentLayerIndex ? { ...l, data: newData } : l
+        ),
+      }))
+    },
 
     // Clipboard operations
     copy: () => {

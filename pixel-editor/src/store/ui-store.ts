@@ -30,6 +30,7 @@ export type DialogType =
   | 'isometricGrid'
   | 'guidesSettings'
   | 'selectionModify'
+  | 'strokeSelection'
   | 'layerProperties'
   | 'about'
   | 'startup'
