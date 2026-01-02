@@ -273,29 +273,124 @@ export class GradientTool extends BaseTool {
   override drawIndicator(
     ctx: CanvasRenderingContext2D,
     pos: Point,
-    color: string
+    color: string,
+    secondaryColor?: string
   ): void {
+    const startColor = color
+    const endColor = secondaryColor || '#ffffff'
+
     if (this.startPos) {
-      // Draw line from start to current position
-      ctx.strokeStyle = color
+      const dx = pos.x - this.startPos.x
+      const dy = pos.y - this.startPos.y
+      const len = Math.sqrt(dx * dx + dy * dy)
+
+      // Draw main gradient line
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(this.startPos.x + 0.5, this.startPos.y + 0.5)
+      ctx.lineTo(pos.x + 0.5, pos.y + 0.5)
+      ctx.stroke()
+
+      // Draw black outline for visibility
+      ctx.strokeStyle = '#000000'
       ctx.lineWidth = 1
-      ctx.setLineDash([4, 4])
+      ctx.setLineDash([2, 2])
       ctx.beginPath()
       ctx.moveTo(this.startPos.x + 0.5, this.startPos.y + 0.5)
       ctx.lineTo(pos.x + 0.5, pos.y + 0.5)
       ctx.stroke()
       ctx.setLineDash([])
 
-      // Draw start point marker
-      ctx.fillStyle = color
-      ctx.beginPath()
-      ctx.arc(this.startPos.x, this.startPos.y, 3, 0, Math.PI * 2)
-      ctx.fill()
-    }
+      // Draw color stops along the line
+      const numStops = this.interpolation === 'step' ? this.steps : 5
+      for (let i = 0; i <= numStops; i++) {
+        const t = i / numStops
+        const stopX = this.startPos.x + dx * t
+        const stopY = this.startPos.y + dy * t
 
-    // Draw crosshair at current position
-    super.drawIndicator(ctx, pos, color)
+        // Interpolate color for this stop
+        const startRgb = hexToRgb(startColor)
+        const endRgb = hexToRgb(endColor)
+        const r = Math.round(startRgb.r + (endRgb.r - startRgb.r) * t)
+        const g = Math.round(startRgb.g + (endRgb.g - startRgb.g) * t)
+        const b = Math.round(startRgb.b + (endRgb.b - startRgb.b) * t)
+        const stopColor = `rgb(${r},${g},${b})`
+
+        // Draw color stop circle
+        const radius = (i === 0 || i === numStops) ? 5 : 3
+        ctx.fillStyle = stopColor
+        ctx.beginPath()
+        ctx.arc(stopX, stopY, radius, 0, Math.PI * 2)
+        ctx.fill()
+
+        // Draw outline
+        ctx.strokeStyle = '#000000'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+
+      // Draw start point label with color
+      ctx.fillStyle = startColor
+      ctx.strokeStyle = '#000000'
+      ctx.lineWidth = 2
+      ctx.font = 'bold 10px sans-serif'
+      ctx.strokeText('START', this.startPos.x + 8, this.startPos.y - 8)
+      ctx.fillText('START', this.startPos.x + 8, this.startPos.y - 8)
+
+      // Draw end point label with color
+      ctx.fillStyle = endColor
+      ctx.strokeText('END', pos.x + 8, pos.y - 8)
+      ctx.fillText('END', pos.x + 8, pos.y - 8)
+
+      // Show gradient type indicator
+      if (this.gradientType === 'radial' && len > 10) {
+        // Draw radius circle for radial gradient
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([4, 4])
+        ctx.beginPath()
+        ctx.arc(this.startPos.x, this.startPos.y, len, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+
+      // Show length in pixels
+      if (len > 20) {
+        const midX = (this.startPos.x + pos.x) / 2
+        const midY = (this.startPos.y + pos.y) / 2
+        const lengthText = `${Math.round(len)}px`
+        ctx.fillStyle = '#ffffff'
+        ctx.strokeStyle = '#000000'
+        ctx.lineWidth = 2
+        ctx.font = '9px sans-serif'
+        ctx.strokeText(lengthText, midX + 5, midY - 5)
+        ctx.fillText(lengthText, midX + 5, midY - 5)
+      }
+    } else {
+      // Draw crosshair when not dragging
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(pos.x - 5, pos.y + 0.5)
+      ctx.lineTo(pos.x + 6, pos.y + 0.5)
+      ctx.moveTo(pos.x + 0.5, pos.y - 5)
+      ctx.lineTo(pos.x + 0.5, pos.y + 6)
+      ctx.stroke()
+    }
   }
+
+  // Getters for configuration
+  getGradientType(): GradientType { return this.gradientType }
+  getInterpolation(): GradientInterpolation { return this.interpolation }
+  getSteps(): number { return this.steps }
+  getDithering(): boolean { return this.dithering }
+
+  // Setters for configuration
+  setGradientType(type: GradientType): void { this.gradientType = type }
+  setInterpolation(interpolation: GradientInterpolation): void { this.interpolation = interpolation }
+  setSteps(steps: number): void { this.steps = Math.max(2, Math.min(256, steps)) }
+  setDithering(enabled: boolean): void { this.dithering = enabled }
 }
 
 // Tool definition

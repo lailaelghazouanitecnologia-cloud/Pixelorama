@@ -75,7 +75,7 @@ function ToolSeparator() {
 export function Toolbar() {
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="w-10 flex flex-col items-center py-2 gap-0.5"
+      <div className="w-12 flex flex-col items-center py-2 gap-0.5"
         style={{ backgroundColor: 'var(--pix-bg-secondary)', borderRight: '1px solid var(--pix-border)' }}>
 
         {/* Drawing Tools */}

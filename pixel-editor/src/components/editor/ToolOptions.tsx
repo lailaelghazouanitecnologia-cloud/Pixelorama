@@ -18,6 +18,7 @@ export function ToolOptions() {
   // Local state for new tools
   const [smudgeStrength, setSmudgeStrength] = useState(50)
   const [cloneOpacity, setCloneOpacity] = useState(100)
+  const [cloneShape, setCloneShape] = useState<'circle' | 'square' | 'diamond' | 'custom'>('circle')
   const [dodgeBurnMode, setDodgeBurnMode] = useState<'dodge' | 'burn'>('dodge')
   const [dodgeBurnExposure, setDodgeBurnExposure] = useState(50)
   const [dodgeBurnRange, setDodgeBurnRange] = useState<'shadows' | 'midtones' | 'highlights'>('midtones')
@@ -217,18 +218,46 @@ export function ToolOptions() {
           <>
             <div className="separator-v h-4" />
             <div className="flex items-center gap-2">
+              <span className="text-pix-xs text-pix-text-muted">Shape:</span>
+              <select
+                className="input py-0 text-pix-xs"
+                value={cloneShape}
+                onChange={(e) => {
+                  const shape = e.target.value as 'circle' | 'square' | 'diamond' | 'custom'
+                  setCloneShape(shape)
+                  const tool = ToolRegistry.getInstance('cloneStamp')
+                  if (tool && 'setStampShape' in tool) {
+                    (tool as any).setStampShape(shape)
+                  }
+                }}
+              >
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+                <option value="diamond">Diamond</option>
+                <option value="custom">Soft</option>
+              </select>
+            </div>
+            <div className="separator-v h-4" />
+            <div className="flex items-center gap-2">
               <span className="text-pix-xs text-pix-text-muted">Opacity:</span>
               <input
                 type="range"
-                className="slider w-20"
+                className="slider w-16"
                 value={cloneOpacity}
-                onChange={(e) => setCloneOpacity(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const opacity = parseInt(e.target.value)
+                  setCloneOpacity(opacity)
+                  const tool = ToolRegistry.getInstance('cloneStamp')
+                  if (tool && 'setOpacity' in tool) {
+                    (tool as any).setOpacity(opacity)
+                  }
+                }}
                 min={1}
                 max={100}
               />
               <span className="text-pix-xs w-8 text-right">{cloneOpacity}%</span>
             </div>
-            <span className="text-pix-xs text-pix-text-muted ml-2">Alt+Click to set source</span>
+            <span className="text-pix-xs text-pix-text-muted ml-2">Click to set source, then paint</span>
           </>
         )}
 
